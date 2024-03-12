@@ -283,8 +283,12 @@ em_stream_client_extract_frame_data(GstBuffer *buffer, em_proto_DownMessage *msg
 
 	// Not all buffers has extension data attached, check.
 	if (!gst_rtp_buffer_get_extension(&rtp_buffer)) {
+		// TODO: This happens for most RTP buffers we receive as they are not ours.
+		// Is there a smarter way to filter them?
+		// ALOGW("Skipping RTP buffer without extension bit.");
 		goto no_buf;
 	}
+
 	uint8_t buf[em_proto_DownMessage_size] = {};
 	guint size = 0;
 	if (!gst_rtp_buffer_get_extension_twobytes_header(&rtp_buffer, NULL, RTP_TWOBYTES_HDR_EXT_ID,
@@ -294,12 +298,13 @@ em_stream_client_extract_frame_data(GstBuffer *buffer, em_proto_DownMessage *msg
 		ALOGE("Could not retrieve twobyte rtp extension on buffer!");
 		goto no_buf;
 	}
+
 	pb_istream_t our_istream = pb_istream_from_buffer(buf, size);
 
 	bool result = pb_decode_ex(&our_istream, em_proto_DownMessage_fields, msg, PB_DECODE_NULLTERMINATED);
 
 	if (!result) {
-		ALOGE("Error! %s", PB_GET_ERROR(&our_istream));
+		ALOGE("Decoding protobuf with size %d failed: %s", size, PB_GET_ERROR(&our_istream));
 		goto no_buf;
 	}
 
@@ -442,6 +447,22 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 	return GST_FLOW_OK;
 }
 
+static GstPadProbeReturn
+rtp_h264_depay_sink_pad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data) {
+	EmStreamClient *sc = (EmStreamClient *) user_data;
+	(void) pad;
+	(void) sc;
+
+	GstBuffer *buffer = gst_pad_probe_info_get_buffer(info);
+	em_proto_DownMessage msg = em_proto_DownMessage_init_default;
+	if (!em_stream_client_extract_frame_data(buffer, &msg)) {
+		// TODO: This happens for most RTP buffers we receive as they don't contain an
+		// extension bit / are not ours. Is there a smarter way to filter them?
+		// ALOGW("Could not extract frame data from RTP buffer.");
+	}
+	return GST_PAD_PROBE_OK;
+}
+
 static void
 on_need_pipeline_cb(EmConnection *emconn, EmStreamClient *sc)
 {
@@ -464,7 +485,7 @@ on_need_pipeline_cb(EmConnection *emconn, EmStreamClient *sc)
 
 	gchar *pipeline_string = g_strdup_printf(
 	    "webrtcbin name=webrtc bundle-policy=max-bundle latency=0 ! "
-	    "rtph264depay ! "
+	    "rtph264depay name=depay ! "
 	    "h264parse ! "
 	    "video/x-h264,stream-format=(string)byte-stream, alignment=(string)au,parsed=(boolean)true !"
 	    "amcviddec-omxqcomvideodecoderavc ! "
@@ -520,6 +541,15 @@ on_need_pipeline_cb(EmConnection *emconn, EmStreamClient *sc)
 	g_object_unref(bus);
 
 	sc->pipeline_is_running = TRUE;
+
+	GstElement *depay = gst_bin_get_by_name(GST_BIN(sc->pipeline), "depay");
+	GstPad *pad = gst_element_get_static_pad(depay, "sink");
+	if (pad != NULL) {
+		gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, rtp_h264_depay_sink_pad_probe, sc, NULL);
+		gst_object_unref(pad);
+	} else {
+		ALOGE("Could not find static sink pad in depay.");
+	}
 
 	// This actually hands over the pipeline. Once our own handler returns, the pipeline will be started by the
 	// connection.
