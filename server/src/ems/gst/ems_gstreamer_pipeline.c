@@ -247,7 +247,7 @@ data_channel_message_data_cb(GstWebRTCDataChannel *datachannel, GBytes *data, st
 static void
 data_channel_message_string_cb(GstWebRTCDataChannel *datachannel, gchar *str, struct ems_gstreamer_pipeline *egp)
 {
-	U_LOG_I("Received data channel message: %s\n", str);
+	U_LOG_I("Received data channel message: %s", str);
 }
 
 GstPadProbeReturn
@@ -263,7 +263,7 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	struct ems_gstreamer_pipeline *egp = (struct ems_gstreamer_pipeline *)user_data;
 
 	if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-		U_LOG_E("Received BufferList in webrtcbin srcpad! No support for BufferList!\n");
+		U_LOG_E("Received BufferList in webrtcbin srcpad! No support for BufferList!");
 		return GST_PAD_PROBE_REMOVE;
 	}
 
@@ -272,7 +272,7 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	buffer = gst_buffer_make_writable(buffer);
 
 	if (!gst_rtp_buffer_map(buffer, GST_MAP_WRITE, &rtp_buffer)) {
-		U_LOG_E("Failed to map GstBuffer\n");
+		U_LOG_E("Failed to map GstBuffer");
 		return GST_PAD_PROBE_REMOVE;
 	}
 
