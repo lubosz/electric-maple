@@ -61,10 +61,6 @@ struct ems_gstreamer_pipeline
 {
 	struct gstreamer_pipeline base;
 
-
-	// struct GstElement *pipeline;
-	GstElement *webrtc;
-
 	GstWebRTCDataChannel *data_channel;
 	guint timeout_src_id;
 
