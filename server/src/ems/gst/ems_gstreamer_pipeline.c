@@ -262,11 +262,6 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 	struct ems_gstreamer_pipeline *egp = (struct ems_gstreamer_pipeline *)user_data;
 
-	if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-		U_LOG_E("Received BufferList in webrtcbin srcpad! No support for BufferList!");
-		return GST_PAD_PROBE_REMOVE;
-	}
-
 	buffer = gst_pad_probe_info_get_buffer(info);
 
 	buffer = gst_buffer_make_writable(buffer);
@@ -351,7 +346,7 @@ webrtc_client_connected_cb(EmsSignalingServer *server, EmsClientId client_id, st
 
 	if (webrtcbin_srcpad != NULL) {
 		// Add a probe to call our callback when buffers get to the src pad
-		gst_pad_add_probe(webrtcbin_srcpad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+		gst_pad_add_probe(webrtcbin_srcpad, GST_PAD_PROBE_TYPE_BUFFER,
 		                  webrtcbin_srcpad_probe, egp, NULL /*destroy_data*/);
 
 		gst_object_unref(webrtcbin_srcpad);
