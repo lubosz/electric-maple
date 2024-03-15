@@ -1,4 +1,5 @@
 // Copyright 2023, Pluto VR, Inc.
+// Copyright 2024, Collabora, Ltd.
 //
 // SPDX-License-Identifier: BSL-1.0
 
@@ -7,6 +8,7 @@
  * @brief Main file for WebRTC client.
  * @author Moshi Turner <moses@collabora.com>
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  */
 #include "EglData.hpp"
 #include "em/em_egl.h"
@@ -188,6 +190,7 @@ connected_cb(EmConnection *connection, struct em_state *state)
 
 } // namespace
 
+
 void
 android_main(struct android_app *app)
 {
@@ -198,13 +201,13 @@ android_main(struct android_app *app)
 	// Logcat buffer to be able to capture everything gstreamer's going to spit at you !
 	// in Tools -> logcat -> Cycle Buffer Size (I set it to 102400 KB).
 
-	// setenv("GST_DEBUG", "*:3", 1);
-	// setenv("GST_DEBUG", "*ssl*:9,*tls*:9,*webrtc*:9", 1);
-	// setenv("GST_DEBUG", "GST_CAPS:5", 1);
-	setenv("GST_DEBUG", "*:2,webrtc*:9,sctp*:9,dtls*:9,amcvideodec:9", 1);
-
-	// do not do ansi color codes
-	setenv("GST_DEBUG_NO_COLOR", "1", 1);
+	// TODO: Make configurable via `adb shell setprop`
+	constexpr const char *gst_debug_string = "*:2";
+	//	constexpr const char *gst_debug_string = "*:3";
+	//	constexpr const char *gst_debug_string = "*ssl*:9,*tls*:9,*webrtc*:9";
+	//	constexpr const char *gst_debug_string = "GST_CAPS:5";
+	//	constexpr const char *gst_debug_string = "*:2,webrtc*:9,sctp*:9,dtls*:9,amcvideodec:9";
+	//	constexpr const char *gst_debug_string = "*:2, default:5";
 
 	JNIEnv *env = nullptr;
 	(*app->activity->vm).AttachCurrentThread(&env, NULL);
@@ -338,6 +341,9 @@ android_main(struct android_app *app)
 
 	// Set up gstreamer
 	gst_init(0, NULL);
+
+	// Does this need to be set after gst-init?
+	gst_debug_set_threshold_from_string(gst_debug_string, true);
 
 	// Set up our own objects
 	ALOGI("%s: creating stream client object", __FUNCTION__);
