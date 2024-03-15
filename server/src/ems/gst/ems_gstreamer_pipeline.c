@@ -71,7 +71,7 @@ struct ems_gstreamer_pipeline
 	// struct GstElement *pipeline;
 	GstElement *webrtc;
 
-	GObject *data_channel;
+	GstWebRTCDataChannel *data_channel;
 	guint timeout_src_id;
 
 	GBytes *downMsg_bytes;
