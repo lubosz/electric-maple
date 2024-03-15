@@ -91,7 +91,7 @@ gst_bus_cb(GstBus *bus, GstMessage *message, gpointer user_data)
 		gchar *debug_msg;
 		gst_message_parse_error(message, &gerr, &debug_msg);
 		GST_DEBUG_BIN_TO_DOT_FILE(pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "mss-pipeline-ERROR");
-		g_error("Error: %s (%s)", gerr->message, debug_msg);
+		U_LOG_E("Error: %s (%s)", gerr->message, debug_msg);
 		g_error_free(gerr);
 		g_free(debug_msg);
 	} break;
@@ -100,7 +100,7 @@ gst_bus_cb(GstBus *bus, GstMessage *message, gpointer user_data)
 		gchar *debug_msg;
 		gst_message_parse_warning(message, &gerr, &debug_msg);
 		GST_DEBUG_BIN_TO_DOT_FILE(pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "mss-pipeline-WARNING");
-		g_warning("Warning: %s (%s)", gerr->message, debug_msg);
+		U_LOG_W("Warning: %s (%s)", gerr->message, debug_msg);
 		g_error_free(gerr);
 		g_free(debug_msg);
 	} break;
