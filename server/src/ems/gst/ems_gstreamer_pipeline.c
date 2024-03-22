@@ -300,6 +300,11 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 		return GST_PAD_PROBE_OK;
 	}
 
+	// The bit should be written by gst_rtp_buffer_add_extension_twobytes_header
+	if (!gst_rtp_buffer_get_extension(&rtp_buffer)) {
+		U_LOG_E("The RTP extension bit was not set.");
+	}
+
 	gst_rtp_buffer_unmap(&rtp_buffer);
 
 	return GST_PAD_PROBE_OK;
