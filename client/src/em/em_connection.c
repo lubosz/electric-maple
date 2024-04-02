@@ -432,6 +432,8 @@ emconn_webrtc_on_ice_candidate_cb(GstElement *webrtcbin, guint mlineindex, gchar
 
 	json_node_unref(root);
 	g_object_unref(builder);
+
+	GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(emconn->pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-on-ice-candidate");
 }
 
 static void
