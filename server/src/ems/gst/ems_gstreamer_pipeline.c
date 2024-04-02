@@ -145,6 +145,9 @@ connect_webrtc_to_tee(GstElement *webrtcbin)
 	sinkpad = gst_element_request_pad_simple(webrtcbin, "sink_0");
 	ret = gst_pad_link(srcpad, sinkpad);
 	g_assert(ret == GST_PAD_LINK_OK);
+
+	GST_DEBUG_BIN_TO_DOT_FILE (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-on-offer");
+
 	gst_object_unref(srcpad);
 	gst_object_unref(sinkpad);
 	gst_object_unref(tee);
@@ -380,7 +383,7 @@ webrtc_client_connected_cb(EmsSignalingServer *server, EmsClientId client_id, st
 	    webrtcbin, "create-offer", NULL,
 	    gst_promise_new_with_change_func((GstPromiseChangeFunc)on_offer_created, webrtcbin, NULL));
 
-	GST_DEBUG_BIN_TO_DOT_FILE(pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "rtcbin");
+	GST_DEBUG_BIN_TO_DOT_FILE(pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-client-connected");
 
 	if (!ems_gstreamer_pipeline_add_payload_pad_probe(egp, webrtcbin)) {
 		U_LOG_E("Failed to add payload pad probe.");
