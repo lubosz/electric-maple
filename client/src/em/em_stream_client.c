@@ -5,6 +5,7 @@
  * @file
  * @brief  Pipeline module ElectricMaple XR streaming solution
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  * @ingroup em_client
  */
 
@@ -276,7 +277,7 @@ em_stream_client_extract_frame_data(GstBuffer *buffer, em_proto_DownMessage *msg
 	GstRTPBuffer rtp_buffer = GST_RTP_BUFFER_INIT;
 
 	// extract Downstream metadata from rtp header
-	if (!gst_rtp_buffer_map(buffer, GST_MAP_WRITE, &rtp_buffer)) {
+	if (!gst_rtp_buffer_map(buffer, GST_MAP_READ, &rtp_buffer)) {
 		ALOGE("Failed to map GstBuffer");
 		return false;
 	}
