@@ -102,6 +102,9 @@ struct _EmStreamClient
 	GMutex sample_mutex;
 	GstSample *sample;
 	struct timespec sample_decode_end_ts;
+
+	em_proto_DownMessage last_down_msg;
+	GMutex down_msg_mutex;
 };
 
 #if 0
@@ -210,6 +213,9 @@ em_stream_client_init(EmStreamClient *sc)
 	sc->loop = g_main_loop_new(NULL, FALSE);
 	g_assert(os_thread_helper_init(&sc->play_thread) >= 0);
 	g_mutex_init(&sc->sample_mutex);
+	g_mutex_init(&sc->down_msg_mutex);
+	sc->last_down_msg = (em_proto_DownMessage) em_proto_DownMessage_init_default;
+
 	ALOGI("%s: done creating stuff", __FUNCTION__);
 }
 static void
@@ -451,7 +457,6 @@ static GstPadProbeReturn
 rtp_h264_depay_sink_pad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data) {
 	EmStreamClient *sc = (EmStreamClient *) user_data;
 	(void) pad;
-	(void) sc;
 
 	GstBuffer *buffer = gst_pad_probe_info_get_buffer(info);
 	em_proto_DownMessage msg = em_proto_DownMessage_init_default;
@@ -459,6 +464,9 @@ rtp_h264_depay_sink_pad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_
 		// TODO: This happens for most RTP buffers we receive as they don't contain an
 		// extension bit / are not ours. Is there a smarter way to filter them?
 		// ALOGW("Could not extract frame data from RTP buffer.");
+	} else {
+		g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->down_msg_mutex);
+		sc->last_down_msg = msg;
 	}
 	return GST_PAD_PROBE_OK;
 }
@@ -729,20 +737,27 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 
 	struct em_sc_sample *ret = calloc(1, sizeof(struct em_sc_sample));
 
-	// ALOGE("FRED: GOT A SAMPLE !!!");
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
 	GstCaps *caps = gst_sample_get_caps(sample);
-	GstRTPBuffer rtp_buffer = GST_RTP_BUFFER_INIT;
 
-	// extract Downstream metadata from rtp header
-	em_proto_DownMessage msg = em_proto_DownMessage_init_default;
-	if (em_stream_client_extract_frame_data(buffer, &msg)) {
-		ALOGI("RYLIE: got downstream frame message");
+	// TODO: Make sure this is from the same buffer as sc->sample
+	em_proto_DownMessage msg;
+	{
+		g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->down_msg_mutex);
+		msg = sc->last_down_msg;
 	}
+
 	if (msg.has_frame_data && msg.frame_data.has_P_localSpace_view0 && msg.frame_data.has_P_localSpace_view1) {
-		// OK we have a message for this one.
-		ALOGI("RYLIE: got downstream frame message with poses!");
-		// TODO is it too late to get it here?
+		ALOGD("Got DownMessage: Frame #%ld V0 (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f) display_time %ld",
+		      msg.frame_data.frame_sequence_id,
+		      msg.frame_data.P_localSpace_view0.position.x,
+		      msg.frame_data.P_localSpace_view0.position.y,
+		      msg.frame_data.P_localSpace_view0.position.z,
+		      msg.frame_data.P_localSpace_view1.position.x,
+		      msg.frame_data.P_localSpace_view1.position.y,
+		      msg.frame_data.P_localSpace_view1.position.z,
+		      msg.frame_data.display_time);
+
 		ret->base.have_poses = true;
 		ret->base.poses[0] = pose_to_openxr(&msg.frame_data.P_localSpace_view0);
 		ret->base.poses[1] = pose_to_openxr(&msg.frame_data.P_localSpace_view1);
