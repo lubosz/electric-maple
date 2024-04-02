@@ -286,6 +286,23 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 		return GST_PAD_PROBE_OK;
 	}
 
+	// Test if message can be decoded
+	pb_istream_t our_istream = pb_istream_from_buffer(extension_data, extension_size);
+	em_proto_DownMessage msg;
+	bool result = pb_decode_ex(&our_istream, em_proto_DownMessage_fields, &msg, PB_DECODE_NULLTERMINATED);
+	if (!result) {
+		U_LOG_E("Decoding protobuf failed: %s downMsg_bytes size: %ld", PB_GET_ERROR(&our_istream), extension_size);
+	} else {
+		U_LOG_T("frame_sequence_id %ld V0: (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f)",
+			msg.frame_data.frame_sequence_id,
+			msg.frame_data.P_localSpace_view0.position.x,
+			msg.frame_data.P_localSpace_view0.position.y,
+			msg.frame_data.P_localSpace_view0.position.z,
+			msg.frame_data.P_localSpace_view1.position.x,
+			msg.frame_data.P_localSpace_view1.position.y,
+			msg.frame_data.P_localSpace_view1.position.z);
+	}
+
 	if (!gst_rtp_buffer_add_extension_twobytes_header(&rtp_buffer, 0 /* appbits */, RTP_TWOBYTES_HDR_EXT_ID,
 	                                                  extension_data, (guint)extension_size)) {
 		U_LOG_E("Failed to add extension data !");
@@ -619,15 +636,19 @@ ems_gstreamer_pipeline_set_down_msg(struct gstreamer_pipeline *gp, em_proto_Down
 	struct ems_gstreamer_pipeline *egp = (struct ems_gstreamer_pipeline *)gp;
 
 	uint8_t buf[em_proto_DownMessage_size];
-	size_t n = 0;
-	pb_get_encoded_size(&n, em_proto_DownMessage_fields, &msg);
-
 	pb_ostream_t os = pb_ostream_from_buffer(buf, sizeof(buf));
 
-	pb_encode(&os, em_proto_DownMessage_fields, &msg);
-	g_bytes_unref(egp->downMsg_bytes);
-	egp->downMsg_bytes = NULL;
-	egp->downMsg_bytes = g_bytes_new(buf, n);
+	if (!pb_encode(&os, em_proto_DownMessage_fields, msg)) {
+		U_LOG_E("Failed to encode protobuf.");
+		return;
+	}
+
+	if (egp->downMsg_bytes != NULL) {
+		g_bytes_unref(egp->downMsg_bytes);
+		egp->downMsg_bytes = NULL;
+	}
+
+	egp->downMsg_bytes = g_bytes_new(buf, os.bytes_written);
 }
 
 void
@@ -712,6 +733,7 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	egp->base.node.destroy = destroy;
 	egp->base.xfctx = xfctx;
 	egp->callbacks = callbacks_collection;
+	egp->downMsg_bytes = NULL;
 
 
 	gst_init(NULL, NULL);
