@@ -376,6 +376,17 @@ gst_bus_cb(GstBus *bus, GstMessage *message, gpointer data)
 	case GST_MESSAGE_EOS: {
 		g_error("gst_bus_cb: Got EOS!!");
 	} break;
+	case GST_MESSAGE_STATE_CHANGED: {
+		GstState old_state, new_state;
+		gst_message_parse_state_changed(message, &old_state, &new_state, NULL);
+		if (GST_IS_PIPELINE(message->src)) {
+			ALOGD("Pipeline %s changed state: %s -> %s", GST_OBJECT_NAME(message->src),
+			      gst_element_state_get_name(old_state), gst_element_state_get_name(new_state));
+			if (new_state == GST_STATE_PLAYING) {
+				GST_DEBUG_BIN_TO_DOT_FILE(pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-playing");
+			}
+		}
+	} break;
 	default: break;
 	}
 	return TRUE;
@@ -597,6 +608,8 @@ on_need_pipeline_cb(EmConnection *emconn, EmStreamClient *sc)
 	// This actually hands over the pipeline. Once our own handler returns, the pipeline will be started by the
 	// connection.
 	g_signal_emit_by_name(emconn, "set-pipeline", GST_PIPELINE(sc->pipeline), NULL);
+
+	GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(sc->pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-init");
 }
 
 static void
