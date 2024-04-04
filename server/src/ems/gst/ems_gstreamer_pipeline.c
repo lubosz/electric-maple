@@ -281,7 +281,8 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	extension_data = g_bytes_get_data(egp->downMsg_bytes, &extension_size);
 
 	if (extension_size > RTP_TWOBYTES_HDR_EXT_MAX_SIZE) {
-		U_LOG_E("size of data in rtp header is too large ! Implement multi-extension-element support !");
+		U_LOG_E("Data in too large for RTP header (%ld > %d bytes). Implement multi-extension-element support.",
+		        extension_size, RTP_TWOBYTES_HDR_EXT_MAX_SIZE);
 		gst_rtp_buffer_unmap(&rtp_buffer);
 		return GST_PAD_PROBE_OK;
 	}
