@@ -6,6 +6,7 @@
  * @file
  * @brief  Implementation for remote experience object
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  * @ingroup em_client
  */
 
@@ -407,7 +408,8 @@ static void
 report_frame_timing(EmRemoteExperience *exp,
                     const struct timespec *beginFrameTime,
                     const struct timespec *decodeEndTime,
-                    XrTime predictedDisplayTime)
+                    XrTime predictedDisplayTime,
+                    int64_t frame_sequence_id)
 {
 	XrTime xrTimeDecodeEnd = 0;
 	XrTime xrTimeBeginFrame = 0;
@@ -422,8 +424,7 @@ report_frame_timing(EmRemoteExperience *exp,
 		return;
 	}
 	em_proto_UpFrameMessage msg = em_proto_UpFrameMessage_init_default;
-	// TODO frame ID
-	// msg.frame_sequence_id = ???;
+	msg.frame_sequence_id = frame_sequence_id;
 	msg.decode_complete_time = xrTimeDecodeEnd;
 	msg.begin_frame_time = xrTimeBeginFrame;
 	msg.display_time = predictedDisplayTime;
@@ -535,7 +536,7 @@ em_remote_experience_inner_poll_and_render_frame(EmRemoteExperience *exp,
 	exp->prev_sample = sample;
 
 	// Send frame report
-	report_frame_timing(exp, beginFrameTime, &decodeEndTime, predictedDisplayTime);
+	report_frame_timing(exp, beginFrameTime, &decodeEndTime, predictedDisplayTime, sample->frame_sequence_id);
 
 	return EM_POLL_RENDER_RESULT_NEW_SAMPLE;
 }

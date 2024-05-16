@@ -778,9 +778,8 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 		ret->base.poses[0] = pose_to_openxr(&msg.frame_data.P_localSpace_view0);
 		ret->base.poses[1] = pose_to_openxr(&msg.frame_data.P_localSpace_view1);
 
-		// TODO: use msg.frame_id (and others) and populate properly inside stream client.
-		// ...
-		// ...
+		ret->base.frame_sequence_id = msg.frame_data.frame_sequence_id;
+		ret->base.display_time = msg.frame_data.display_time;
 	}
 
 	GstVideoInfo info;
