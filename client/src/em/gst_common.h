@@ -39,4 +39,7 @@ struct em_sample
 
 	bool have_poses;
 	XrPosef poses[2];
+
+	int64_t frame_sequence_id;
+	int64_t display_time;
 };
