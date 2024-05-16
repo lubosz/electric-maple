@@ -207,16 +207,16 @@ ems_hmd_create(ems_instance &emsi)
 	// set the FOV dynamically.
 
 	eh->base.hmd->distortion.fov[0] = (xrt_fov){
-	    .angle_left = -0.855f,
-	    .angle_right = 0.785f,
-	    .angle_up = 0.838f,
-	    .angle_down = -0.873f,
+	    .angle_left = -0.942f,
+	    .angle_right = 0.698f,
+	    .angle_up = 0.768f,
+	    .angle_down = -0.960f,
 	};
 	eh->base.hmd->distortion.fov[1] = (xrt_fov){
-	    .angle_left = -0.785f,
-	    .angle_right = 0.855f,
-	    .angle_up = 0.838f,
-	    .angle_down = -0.873f,
+	    .angle_left = -0.698f,
+	    .angle_right = 0.942f,
+	    .angle_up = 0.768f,
+	    .angle_down = -0.960f,
 	};
 
 	// TODO: Ditto, figure out the device's actual resolution
