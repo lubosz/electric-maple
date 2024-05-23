@@ -777,6 +777,8 @@ ems_compositor_destroy(struct xrt_compositor *xc)
 	struct ems_compositor *c = ems_compositor(xc);
 	struct vk_bundle *vk = get_vk(c);
 
+	U_LOG_I("Shutting down Electric Maple compositor.");
+
 	EMS_COMP_DEBUG(c, "EMS_COMP_COMP_DESTROY");
 
 	ems_gstreamer_pipeline_stop_if_playing(c->gstreamer_pipeline);

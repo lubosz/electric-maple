@@ -113,6 +113,8 @@ ems_instance_create_system(struct xrt_instance *xinst,
 void
 ems_instance_destroy(struct xrt_instance *xinst)
 {
+	U_LOG_I("Shutting down Electric Maple instance.");
+
 	struct ems_instance *emsi = from_xinst(xinst);
 
 	ems_callbacks_reset(emsi->callbacks);
