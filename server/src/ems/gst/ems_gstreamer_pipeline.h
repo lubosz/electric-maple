@@ -1,10 +1,11 @@
-// Copyright 2019-2023, Collabora, Ltd.
+// Copyright 2019-2024, Collabora, Ltd.
 // Copyright 2023, Pluto VR, Inc.
 // SPDX-License-Identifier: BSL-1.0
 /*!
  * @file
  * @brief  A GStreamer pipeline for WebRTC streaming
  * @author Moshi Turner <moses@collabora.com>
+ * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  * @ingroup aux_util
  */
 
@@ -26,6 +27,9 @@ ems_gstreamer_pipeline_play(struct gstreamer_pipeline *gp);
 
 void
 ems_gstreamer_pipeline_stop(struct gstreamer_pipeline *gp);
+
+void
+ems_gstreamer_pipeline_stop_if_playing(struct gstreamer_pipeline *gp);
 
 void
 ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
