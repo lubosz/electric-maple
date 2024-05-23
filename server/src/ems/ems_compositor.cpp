@@ -779,6 +779,8 @@ ems_compositor_destroy(struct xrt_compositor *xc)
 
 	EMS_COMP_DEBUG(c, "EMS_COMP_COMP_DESTROY");
 
+	ems_gstreamer_pipeline_stop_if_playing(c->gstreamer_pipeline);
+
 	// Make sure we don't have anything to destroy.
 	comp_swapchain_shared_garbage_collect(&c->base.cscs);
 	comp_swapchain_shared_destroy(&c->base.cscs, vk);

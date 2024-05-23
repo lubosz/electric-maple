@@ -677,6 +677,25 @@ ems_gstreamer_pipeline_play(struct gstreamer_pipeline *gp)
 }
 
 void
+ems_gstreamer_pipeline_stop_if_playing(struct gstreamer_pipeline *gp)
+{
+	struct ems_gstreamer_pipeline *egp = (struct ems_gstreamer_pipeline *)gp;
+
+	GstState state;
+	GstState pending;
+
+	GstStateChangeReturn ret = gst_element_get_state(egp->base.pipeline, &state, &pending, 3 * GST_SECOND);
+	if (ret != GST_STATE_CHANGE_SUCCESS) {
+		U_LOG_E("Unable to get pipeline state.");
+		return;
+	}
+
+	if (state == GST_STATE_PLAYING) {
+		ems_gstreamer_pipeline_stop(gp);
+	}
+}
+
+void
 ems_gstreamer_pipeline_stop(struct gstreamer_pipeline *gp)
 {
 	struct ems_gstreamer_pipeline *egp = (struct ems_gstreamer_pipeline *)gp;
@@ -689,7 +708,7 @@ ems_gstreamer_pipeline_stop(struct gstreamer_pipeline *gp)
 	// Wait for EOS message on the pipeline bus.
 	U_LOG_T("Waiting for EOS");
 	GstMessage *msg = NULL;
-	msg = gst_bus_timed_pop_filtered(GST_ELEMENT_BUS(egp->base.pipeline), GST_CLOCK_TIME_NONE,
+	msg = gst_bus_timed_pop_filtered(GST_ELEMENT_BUS(egp->base.pipeline), 3 * GST_SECOND,
 	                                 GST_MESSAGE_EOS | GST_MESSAGE_ERROR);
 	//! @todo Should check if we got an error message here or an eos.
 	(void)msg;
