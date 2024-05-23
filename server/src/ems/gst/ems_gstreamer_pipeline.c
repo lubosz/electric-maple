@@ -762,8 +762,8 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	    "videoconvert ! "                  //
 	    "video/x-raw,format=NV12 ! "       //
 	    "queue ! "                         //
-	    "x264enc tune=zerolatency ! "      //
-	    "video/x-h264,profile=baseline ! " //
+	    "x264enc tune=zerolatency sliced-threads=true speed-preset=superfast bframes=2 bitrate=4096 ! "      //
+	    "video/x-h264,profile=main ! " //
 	    "%s"
 	    "queue ! "                          //
 	    "h264parse ! "                     //
