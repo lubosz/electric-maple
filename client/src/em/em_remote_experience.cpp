@@ -82,7 +82,7 @@ em_remote_experience_emit_upmessage(EmRemoteExperience *exp, em_proto_UpMessage 
 
 	pb_encode(&os, &em_proto_UpMessage_msg, upMessage);
 
-	ALOGI("RYLIE: Sending message");
+	ALOGD("Sending UpMessage #%ld for Frame #%ld", message_id, upMessage->frame.frame_sequence_id);
 	GBytes *bytes = g_bytes_new(buffer, os.bytes_written);
 	bool bResult = em_connection_send_bytes(exp->connection, bytes);
 	g_bytes_unref(bytes);
