@@ -68,11 +68,10 @@ complain_if_wrong_image_size(struct xrt_frame *xf)
 	}
 }
 
-static void
-push_frame(struct xrt_frame_sink *xfs, struct xrt_frame *xf)
+void
+ems_gstreamer_src_push_frame(struct ems_gstreamer_src *gs, struct xrt_frame *xf, GBytes *downMsg_bytes)
 {
 	SINK_TRACE_MARKER();
-	struct ems_gstreamer_src *gs = (struct ems_gstreamer_src *)xfs;
 
 	complain_if_wrong_image_size(xf);
 
@@ -121,6 +120,30 @@ push_frame(struct xrt_frame_sink *xfs, struct xrt_frame *xf)
 	// Duration is measured from last time stamp.
 	GST_BUFFER_DURATION(buffer) = xtimestamp_ns - gs->timestamp_ns;
 	gs->timestamp_ns = xtimestamp_ns;
+
+
+	size_t payload_size;
+	gconstpointer payload_ptr = g_bytes_get_data(downMsg_bytes, &payload_size);
+
+	// Repack the protobuf into a GstBuffer
+	GstBuffer *struct_buf = gst_buffer_new_memdup(payload_ptr, payload_size);
+	if (!struct_buf) {
+		U_LOG_E("Failed to allocate GstBuffer with payload.");
+		return;
+	}
+
+	// Add it to a custom meta
+	GstCustomMeta *custom_meta = gst_buffer_add_custom_meta(buffer, "down-message");
+	if (custom_meta == NULL) {
+		U_LOG_E("Failed to add GstCustomMeta");
+		gst_buffer_unref(struct_buf);
+		return;
+	}
+	GstStructure *custom_structure = gst_custom_meta_get_structure(custom_meta);
+	gst_structure_set(custom_structure, "protobuf", GST_TYPE_BUFFER, struct_buf, NULL);
+
+	gst_buffer_unref(struct_buf);
+
 
 	// All done, send it to the gstreamer pipeline.
 	ret = gst_app_src_push_buffer((GstAppSrc *)gs->appsrc, buffer);
@@ -191,8 +214,14 @@ ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
 	default: assert(false); break;
 	}
 
+	const gchar *tags[] = {NULL};
+	const GstMetaInfo *info = gst_meta_register_custom("down-message", tags, NULL, NULL, NULL);
+	if (info == NULL) {
+		U_LOG_E("Failed to register custom meta 'down-message'.");
+	}
+
 	struct ems_gstreamer_src *gs = U_TYPED_CALLOC(struct ems_gstreamer_src);
-	gs->base.push_frame = push_frame;
+	// gs->base.push_frame = push_frame;
 	gs->node.break_apart = break_apart;
 	gs->node.destroy = destroy;
 	gs->gp = gp;
