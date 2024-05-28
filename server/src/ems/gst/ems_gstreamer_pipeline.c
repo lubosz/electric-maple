@@ -285,23 +285,6 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 		return GST_PAD_PROBE_OK;
 	}
 
-	// Test if message can be decoded
-	pb_istream_t our_istream = pb_istream_from_buffer(extension_data, extension_size);
-	em_proto_DownMessage msg;
-	bool result = pb_decode_ex(&our_istream, em_proto_DownMessage_fields, &msg, PB_DECODE_NULLTERMINATED);
-	if (!result) {
-		U_LOG_E("Decoding protobuf failed: %s downMsg_bytes size: %ld", PB_GET_ERROR(&our_istream), extension_size);
-	} else {
-		U_LOG_T("frame_sequence_id %ld V0: (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f)",
-			msg.frame_data.frame_sequence_id,
-			msg.frame_data.P_localSpace_view0.position.x,
-			msg.frame_data.P_localSpace_view0.position.y,
-			msg.frame_data.P_localSpace_view0.position.z,
-			msg.frame_data.P_localSpace_view1.position.x,
-			msg.frame_data.P_localSpace_view1.position.y,
-			msg.frame_data.P_localSpace_view1.position.z);
-	}
-
 	if (!gst_rtp_buffer_add_extension_twobytes_header(&rtp_buffer, 0 /* appbits */, RTP_TWOBYTES_HDR_EXT_ID,
 	                                                  extension_data, (guint)extension_size)) {
 		U_LOG_E("Failed to add extension data !");
