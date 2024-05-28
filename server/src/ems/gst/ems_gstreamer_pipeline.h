@@ -12,7 +12,8 @@
 #include "util/u_misc.h"
 #include "util/u_debug.h"
 
-#include "gstreamer/gst_pipeline.h"
+
+#include "ems_gstreamer.h"
 
 #ifdef __cplusplus
 extern "C" {

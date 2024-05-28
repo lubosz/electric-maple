@@ -30,8 +30,7 @@
 
 #include "util/comp_base.h"
 
-#include "gstreamer/gst_pipeline.h"
-#include "gstreamer/gst_sink.h"
+#include "gst/ems_gstreamer_src.h"
 #include "gst/ems_gstreamer_pipeline.h"
 
 
@@ -139,7 +138,7 @@ struct ems_compositor
 
 	bool pipeline_playing = false;
 	struct gstreamer_pipeline *gstreamer_pipeline;
-	struct gstreamer_sink *gstreamer_sink;
+	struct ems_gstreamer_src *gstreamer_src;
 	struct xrt_frame_sink *frame_sink;
 
 	uint64_t offset_ns;
