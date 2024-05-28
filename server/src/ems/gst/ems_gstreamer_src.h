@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <glib.h>
+
 #include "xrt/xrt_frame.h"
 
 #ifdef __cplusplus
@@ -17,6 +19,9 @@ extern "C" {
 
 struct ems_gstreamer_src;
 struct gstreamer_pipeline;
+
+void
+ems_gstreamer_src_push_frame(struct ems_gstreamer_src *gs, struct xrt_frame *xf, GBytes *downMsg_bytes);
 
 void
 ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
