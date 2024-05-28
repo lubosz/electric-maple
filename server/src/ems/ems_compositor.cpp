@@ -20,7 +20,7 @@
 
 #include "electricmaple.pb.h"
 
-#include "gstreamer/gst_internal.h"
+#include "gst/ems_gstreamer.h"
 #include "os/os_time.h"
 
 #include "util/u_misc.h"

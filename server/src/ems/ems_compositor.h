@@ -30,8 +30,7 @@
 
 #include "util/comp_base.h"
 
-#include "gstreamer/gst_pipeline.h"
-#include "gstreamer/gst_sink.h"
+#include "gst/ems_gstreamer_src.h"
 #include "gst/ems_gstreamer_pipeline.h"
 
 

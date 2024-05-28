@@ -27,10 +27,6 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 
-// Monado includes
-#include "gstreamer/gst_internal.h"
-#include "gstreamer/gst_pipeline.h"
-
 #include "ems_signaling_server.h"
 
 #include <glib-unix.h>
