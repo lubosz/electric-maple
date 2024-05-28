@@ -248,7 +248,7 @@ data_channel_message_string_cb(GstWebRTCDataChannel *datachannel, gchar *str, st
 }
 
 GstPadProbeReturn
-webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+rtppay_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
 	(void)pad;
 
@@ -318,7 +318,7 @@ ems_gstreamer_pipeline_add_payload_pad_probe(struct ems_gstreamer_pipeline *self
 		return false;
 	}
 
-	gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, webrtcbin_srcpad_probe, self, NULL);
+	gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, rtppay_probe, self, NULL);
 	gst_object_unref(pad);
 
 	return true;
