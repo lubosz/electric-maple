@@ -52,7 +52,7 @@ struct gstreamer_pipeline
  * @implements xrt_frame_sink
  * @implements xrt_frame_node
  */
-struct gstreamer_sink
+struct ems_gstreamer_src
 {
 	//! The base structure exposing the sink interface.
 	struct xrt_frame_sink base;

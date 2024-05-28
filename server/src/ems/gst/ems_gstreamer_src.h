@@ -15,17 +15,17 @@
 extern "C" {
 #endif
 
-struct gstreamer_sink;
+struct ems_gstreamer_src;
 struct gstreamer_pipeline;
 
 void
-gstreamer_sink_create_with_pipeline(struct gstreamer_pipeline *gp,
-                                    uint32_t width,
-                                    uint32_t height,
-                                    enum xrt_format format,
-                                    const char *appsrc_name,
-                                    struct gstreamer_sink **out_gs,
-                                    struct xrt_frame_sink **out_xfs);
+ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
+                                       uint32_t width,
+                                       uint32_t height,
+                                       enum xrt_format format,
+                                       const char *appsrc_name,
+                                       struct ems_gstreamer_src **out_gs,
+                                       struct xrt_frame_sink **out_xfs);
 
 
 #ifdef __cplusplus

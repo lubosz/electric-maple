@@ -71,7 +71,7 @@ static void
 push_frame(struct xrt_frame_sink *xfs, struct xrt_frame *xf)
 {
 	SINK_TRACE_MARKER();
-	struct gstreamer_sink *gs = (struct gstreamer_sink *)xfs;
+	struct ems_gstreamer_src *gs = (struct ems_gstreamer_src *)xfs;
 
 	complain_if_wrong_image_size(xf);
 
@@ -138,7 +138,7 @@ enough_data(GstElement *appsrc, gpointer udata)
 static void
 break_apart(struct xrt_frame_node *node)
 {
-	struct gstreamer_sink *gs = container_of(node, struct gstreamer_sink, node);
+	struct ems_gstreamer_src *gs = container_of(node, struct ems_gstreamer_src, node);
 
 	/*
 	 * This function is called when we are shutting down, after returning
@@ -154,7 +154,7 @@ break_apart(struct xrt_frame_node *node)
 static void
 destroy(struct xrt_frame_node *node)
 {
-	struct gstreamer_sink *gs = container_of(node, struct gstreamer_sink, node);
+	struct ems_gstreamer_src *gs = container_of(node, struct ems_gstreamer_src, node);
 
 	/*
 	 * All of the nodes has been broken apart and none of our functions will
@@ -172,13 +172,13 @@ destroy(struct xrt_frame_node *node)
  */
 
 void
-gstreamer_sink_create_with_pipeline(struct gstreamer_pipeline *gp,
-                                    uint32_t width,
-                                    uint32_t height,
-                                    enum xrt_format format,
-                                    const char *appsrc_name,
-                                    struct gstreamer_sink **out_gs,
-                                    struct xrt_frame_sink **out_xfs)
+ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
+                                       uint32_t width,
+                                       uint32_t height,
+                                       enum xrt_format format,
+                                       const char *appsrc_name,
+                                       struct ems_gstreamer_src **out_gs,
+                                       struct xrt_frame_sink **out_xfs)
 {
 	const char *format_str = NULL;
 	switch (format) {
@@ -190,7 +190,7 @@ gstreamer_sink_create_with_pipeline(struct gstreamer_pipeline *gp,
 	default: assert(false); break;
 	}
 
-	struct gstreamer_sink *gs = U_TYPED_CALLOC(struct gstreamer_sink);
+	struct ems_gstreamer_src *gs = U_TYPED_CALLOC(struct ems_gstreamer_src);
 	gs->base.push_frame = push_frame;
 	gs->node.break_apart = break_apart;
 	gs->node.destroy = destroy;
