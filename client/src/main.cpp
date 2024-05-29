@@ -254,7 +254,7 @@ android_main(struct android_app *app)
 	strncpy(instanceInfo.applicationInfo.applicationName, "N/A", XR_MAX_APPLICATION_NAME_SIZE - 1);
 	instanceInfo.applicationInfo.applicationName[XR_MAX_APPLICATION_NAME_SIZE - 1] = '\0';
 
-	instanceInfo.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
+	instanceInfo.applicationInfo.apiVersion = XR_API_VERSION_1_0;
 	instanceInfo.enabledExtensionCount = sizeof(extensions) / sizeof(extensions[0]);
 	instanceInfo.enabledExtensionNames = extensions;
 
