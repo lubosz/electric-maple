@@ -232,7 +232,7 @@ ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
 	    "format", G_TYPE_STRING, format_str,  //
 	    "width", G_TYPE_INT, width,           //
 	    "height", G_TYPE_INT, height,         //
-	    "framerate", GST_TYPE_FRACTION, 0, 1, //
+	    "framerate", GST_TYPE_FRACTION, 90, 1, //
 	    NULL);
 
 	g_object_set(G_OBJECT(gs->appsrc),                      //
