@@ -10,6 +10,7 @@
  * @author Jakob Bornecrantz <jakob@collabora.com>
  * @author Rylie Pavlik <rylie.pavlik@collabora.com>
  * @author Moshi Turner <moses@collabora.com>
+ * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  * @ingroup drv_ems
  */
 
@@ -197,6 +198,8 @@ ems_hmd_create(ems_instance &emsi)
 	struct ems_hmd *eh = U_DEVICE_ALLOCATE(struct ems_hmd, flags, 1, 0);
 
 	eh->received = std::make_unique<ems_hmd_recvbuf>();
+
+	m_relation_history_create(&eh->pose_history);
 
 	// Functions.
 	eh->base.update_inputs = ems_hmd_update_inputs;
