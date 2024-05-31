@@ -228,12 +228,12 @@ ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
 	gs->appsrc = gst_bin_get_by_name(GST_BIN(gp->pipeline), appsrc_name);
 
 
-	GstCaps *caps = gst_caps_new_simple(      //
-	    "video/x-raw",                        //
-	    "format", G_TYPE_STRING, format_str,  //
-	    "width", G_TYPE_INT, width,           //
-	    "height", G_TYPE_INT, height,         //
-	    "framerate", GST_TYPE_FRACTION, 0, 1, //
+	GstCaps *caps = gst_caps_new_simple(       //
+	    "video/x-raw",                         //
+	    "format", G_TYPE_STRING, format_str,   //
+	    "width", G_TYPE_INT, width,            //
+	    "height", G_TYPE_INT, height,          //
+	    "framerate", GST_TYPE_FRACTION, 90, 1, //
 	    NULL);
 
 	g_object_set(G_OBJECT(gs->appsrc),                      //
