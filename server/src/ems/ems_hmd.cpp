@@ -198,6 +198,8 @@ ems_hmd_create(ems_instance &emsi)
 
 	eh->received = std::make_unique<ems_hmd_recvbuf>();
 
+	m_relation_history_create(&eh->pose_history);
+
 	// Functions.
 	eh->base.update_inputs = ems_hmd_update_inputs;
 	eh->base.get_tracked_pose = ems_hmd_get_tracked_pose;
