@@ -124,6 +124,7 @@ ems_hmd_get_tracked_pose(struct xrt_device *xdev,
 		}
 		m_relation_history_push(eh->pose_history, &rel, timestamp);
 	}
+
 	m_relation_history_get(eh->pose_history, at_timestamp_ns, out_relation);
 }
 
@@ -215,7 +216,6 @@ ems_hmd_create(ems_instance &emsi)
 
 	// Private data.
 	eh->instance = &emsi;
-	// eh->pose = (struct xrt_pose){XRT_QUAT_IDENTITY, {0.0f, 1.6f, 0.0f}};
 	eh->log_level = debug_get_log_option_sample_log();
 
 	// Print name.
@@ -275,6 +275,16 @@ ems_hmd_create(ems_instance &emsi)
 
 	// TODO: Doing anything with distortion here makes no sense
 	u_distortion_mesh_set_none(&eh->base);
+
+	// Just put an initial identity value in the tracker
+	struct xrt_space_relation identity = XRT_SPACE_RELATION_ZERO;
+	identity.relation_flags = (enum xrt_space_relation_flags)(XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT |
+	                                                          XRT_SPACE_RELATION_ORIENTATION_VALID_BIT |
+	                                                          XRT_SPACE_RELATION_POSITION_VALID_BIT |
+	                                                          XRT_SPACE_RELATION_POSITION_TRACKED_BIT);
+	identity.pose = (struct xrt_pose){XRT_QUAT_IDENTITY, {0.0f, 1.6f, 0.0f}};
+	uint64_t now = os_monotonic_get_ns();
+	m_relation_history_push(eh->pose_history, &identity, now);
 
 	// TODO: Are we going to have any actual useful info to show here?
 	// Setup variable tracker: Optional but useful for debugging
