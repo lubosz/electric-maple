@@ -493,6 +493,7 @@ on_need_pipeline_cb(EmConnection *emconn, EmStreamClient *sc)
 	    "h264parse ! "
 	    "video/x-h264,stream-format=(string)byte-stream, alignment=(string)au,parsed=(boolean)true !"
 	    "amcviddec-omxqcomvideodecoderavc ! "
+	    "video/x-raw(memory:GLMemory), framerate=90/1 ! "
 	    "glsinkbin name=glsink");
 
 	sc->pipeline = gst_object_ref_sink(gst_parse_launch(pipeline_string, &error));
