@@ -250,8 +250,8 @@ ems_hmd_create(ems_instance &emsi)
 	};
 
 	// TODO: Ditto, figure out the device's actual resolution
-	const int panel_w = 1080;
-	const int panel_h = 1200;
+	const int panel_w = 1680;
+	const int panel_h = 1760;
 
 	// Single "screen" (always the case)
 	eh->base.hmd->screens[0].w_pixels = panel_w * 2;

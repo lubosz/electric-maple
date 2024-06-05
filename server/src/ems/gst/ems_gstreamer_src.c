@@ -226,6 +226,7 @@ ems_gstreamer_src_create_with_pipeline(struct gstreamer_pipeline *gp,
 	gs->gp = gp;
 	gs->appsrc = gst_bin_get_by_name(GST_BIN(gp->pipeline), appsrc_name);
 
+	U_LOG_D("Creating pipeline with dimensions %dx%d", width, height);
 
 	GstCaps *caps = gst_caps_new_simple(      //
 	    "video/x-raw",                        //

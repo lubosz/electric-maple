@@ -47,8 +47,8 @@
 // #define APP_VIEW_H (1920)
 
 
-#define APP_VIEW_W (1920)
-#define APP_VIEW_H (1920)
+#define APP_VIEW_W (1680)
+#define APP_VIEW_H (1760)
 
 // TODO making this 1 causes readback failures
 // I assume this means there is some kind of buffer creation failing and we aren't handling the error right.
