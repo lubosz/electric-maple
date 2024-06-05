@@ -200,7 +200,7 @@ android_main(struct android_app *app)
 	// in Tools -> logcat -> Cycle Buffer Size (I set it to 102400 KB).
 
 	// TODO: Make configurable via `adb shell setprop`
-	constexpr const char *gst_debug_string = "*:2";
+	constexpr const char *gst_debug_string = "*:2,amc:0";
 //	constexpr const char *gst_debug_string = "*:3";
 //	constexpr const char *gst_debug_string = "*ssl*:9,*tls*:9,*webrtc*:9";
 //	constexpr const char *gst_debug_string = "GST_CAPS:5";
