@@ -771,6 +771,7 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 			ALOGW("%s: EOS", __FUNCTION__);
 			// TODO trigger teardown?
 		}
+		ALOGW("pull_sample: The latest sample is NULL.");
 		return NULL;
 	}
 	*out_decode_end = decode_end;
