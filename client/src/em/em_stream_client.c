@@ -387,7 +387,7 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
 	GstCustomMeta *custom_meta = gst_buffer_get_custom_meta(buffer, "down-message");
 	if (!custom_meta) {
-		ALOGW("sample_cb: Dropping buffer without down-message.");
+		ALOGD("sample_cb: Dropping buffer without down-message.");
 		return GST_FLOW_OK;
 	}
 
@@ -399,7 +399,7 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 		sc->received_first_frame = true;
 	}
 	if (prevSample) {
-		ALOGI("Discarding unused, replaced sample");
+		ALOGD("Discarding unused, replaced sample");
 		gst_sample_unref(prevSample);
 	}
 	return GST_FLOW_OK;
@@ -794,7 +794,7 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 	gst_video_info_from_caps(&info, caps);
 	gint width = GST_VIDEO_INFO_WIDTH(&info);
 	gint height = GST_VIDEO_INFO_HEIGHT(&info);
-	ALOGI("%s: frame %d (w) x %d (h)", __FUNCTION__, width, height);
+	// ALOGD("%s: frame %d (w) x %d (h)", __FUNCTION__, width, height);
 
 	// TODO: Handle resize?
 #if 0
@@ -846,7 +846,7 @@ em_stream_client_release_sample(EmStreamClient *sc, struct em_sample *ems)
 {
 
 	struct em_sc_sample *impl = (struct em_sc_sample *)ems;
-	ALOGW("RYLIE: Releasing sample with texture ID %d", ems->frame_texture_id);
+	// ALOGD("Releasing sample with texture ID %d", ems->frame_texture_id);
 	gst_sample_unref(impl->sample);
 	free(impl);
 }
