@@ -397,7 +397,7 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
 	GstCustomMeta *custom_meta = gst_buffer_get_custom_meta(buffer, "down-message");
 	if (!custom_meta) {
-		// ALOGD("sample_cb: Dropping buffer without down-message.");
+		ALOGD("sample_cb: Dropping buffer without down-message.");
 		return GST_FLOW_OK;
 	}
 
@@ -409,7 +409,7 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 		sc->received_first_frame = true;
 	}
 	if (prevSample) {
-		// ALOGD("Discarding unused, replaced sample");
+		ALOGD("Discarding unused, replaced sample");
 		gst_sample_unref(prevSample);
 	}
 	return GST_FLOW_OK;
