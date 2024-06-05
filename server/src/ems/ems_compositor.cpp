@@ -47,16 +47,20 @@
 // #define APP_VIEW_H (1920)
 
 
-#define APP_VIEW_W (1680)
-#define APP_VIEW_H (1760)
+#define APP_VIEW_W (1680) // 2^4 * 3 * 5 * 7
+#define APP_VIEW_H (1760) // 2^5 * 5 * 11
 
 // TODO making this 1 causes readback failures
 // I assume this means there is some kind of buffer creation failing and we aren't handling the error right.
-#define READBACK_DIV_FACTOR (2)
+// #define READBACK_DIV_FACTOR (2)
 
-#define READBACK_W2 (APP_VIEW_W / READBACK_DIV_FACTOR)
-#define READBACK_W (READBACK_W2 * 2)
-#define READBACK_H (APP_VIEW_H / READBACK_DIV_FACTOR)
+// #define READBACK_W2 (APP_VIEW_W / READBACK_DIV_FACTOR)
+// #define READBACK_W (READBACK_W2 * 2)
+// #define READBACK_H (APP_VIEW_H / READBACK_DIV_FACTOR)
+
+#define READBACK_W_HALF (4 * APP_VIEW_W / 5)
+#define READBACK_W (READBACK_W_HALF * 2)
+#define READBACK_H (4 * APP_VIEW_H / 5)
 
 
 DEBUG_GET_ONCE_LOG_OPTION(log, "XRT_COMPOSITOR_LOG", U_LOGGING_INFO)
