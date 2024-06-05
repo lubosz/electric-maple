@@ -301,6 +301,8 @@ android_main(struct android_app *app)
 	state.width = viewInfo[0].recommendedImageRectWidth;
 	state.height = viewInfo[0].recommendedImageRectHeight;
 
+	ALOGI("Got recommended eye dimensions: %dx%d", state.width, state.height);
+
 	// OpenXR session
 	ALOGI("FRED: Creating OpenXR session...");
 	PFN_xrGetOpenGLESGraphicsRequirementsKHR xrGetOpenGLESGraphicsRequirementsKHR = NULL;
