@@ -42,4 +42,6 @@ struct em_sample
 
 	int64_t frame_sequence_id;
 	int64_t display_time;
+
+	bool is_predicted;
 };

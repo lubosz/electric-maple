@@ -535,7 +535,9 @@ em_remote_experience_inner_poll_and_render_frame(EmRemoteExperience *exp,
 	exp->prev_sample = sample;
 
 	// Send frame report
-	report_frame_timing(exp, beginFrameTime, &decodeEndTime, predictedDisplayTime, sample->frame_sequence_id);
+	if (!sample->is_predicted) {
+		report_frame_timing(exp, beginFrameTime, &decodeEndTime, predictedDisplayTime, sample->frame_sequence_id);
+	}
 
 	return EM_POLL_RENDER_RESULT_NEW_SAMPLE;
 }

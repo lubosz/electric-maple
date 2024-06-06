@@ -43,6 +43,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// local copy
+#include "m_relation_history.h"
+
 void
 em_gst_message_debug(const char *function, GstMessage *msg);
 
@@ -102,6 +105,15 @@ struct _EmStreamClient
 	GMutex sample_mutex;
 	GstSample *sample;
 	struct timespec sample_decode_end_ts;
+
+	GMutex relation_history_mutex;
+	struct m_relation_history *pose_history0;
+	struct m_relation_history *pose_history1;
+
+	int64_t last_display_time_offset;
+	int64_t last_frame_sequence_id;
+
+	em_proto_DownMessage last_down_message;
 };
 
 #if 0
@@ -216,6 +228,13 @@ em_stream_client_init(EmStreamClient *sc)
 	if (info == NULL) {
 		ALOGE("Failed to register custom meta 'down-message'.");
 	}
+
+	g_mutex_init(&sc->relation_history_mutex);
+	m_relation_history_create(&sc->pose_history0);
+	m_relation_history_create(&sc->pose_history1);
+
+	sc->last_display_time_offset = -1;
+	sc->last_frame_sequence_id = -1;
 
 	ALOGI("%s: done creating stuff", __FUNCTION__);
 }
@@ -378,6 +397,27 @@ gst_bus_cb(GstBus *bus, GstMessage *message, gpointer data)
 	return TRUE;
 }
 
+static bool
+read_down_message_from_custom_meta(GstBuffer *buffer, em_proto_DownMessage *msg);
+
+static struct xrt_pose
+proto_to_xrt_pose(em_proto_Pose *in) {
+	struct xrt_pose out = {
+	    .orientation = {
+		.x = in->orientation.x,
+	        .y = in->orientation.y,
+	        .z = in->orientation.z,
+	        .w = in->orientation.w,
+	    },
+	    .position = {
+		.x = in->position.x,
+	        .y = in->position.y,
+	        .z = in->position.z,
+	    },
+	};
+	return out;
+}
+
 static GstFlowReturn
 on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 {
@@ -393,12 +433,31 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 	GstSample *sample = gst_app_sink_pull_sample(appsink);
 	g_assert_nonnull(sample);
 
-	// drop it like it's hot
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
-	GstCustomMeta *custom_meta = gst_buffer_get_custom_meta(buffer, "down-message");
-	if (!custom_meta) {
-		ALOGD("sample_cb: Dropping buffer without down-message.");
-		return GST_FLOW_OK;
+
+	// Feed all available down messages into pose history, presented or not
+	em_proto_DownMessage msg = em_proto_DownMessage_init_default;
+	if (read_down_message_from_custom_meta(buffer, &msg)) {
+		struct xrt_space_relation rel0 = {
+			.relation_flags = XRT_SPACE_RELATION_ORIENTATION_VALID_BIT |
+					      XRT_SPACE_RELATION_POSITION_VALID_BIT |
+					      XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT |
+					      XRT_SPACE_RELATION_POSITION_TRACKED_BIT,
+			.pose = proto_to_xrt_pose(&msg.frame_data.P_localSpace_view0),
+		};
+
+		struct xrt_space_relation rel1 = {
+			.relation_flags = XRT_SPACE_RELATION_ORIENTATION_VALID_BIT |
+					      XRT_SPACE_RELATION_POSITION_VALID_BIT |
+					      XRT_SPACE_RELATION_ORIENTATION_TRACKED_BIT |
+					      XRT_SPACE_RELATION_POSITION_TRACKED_BIT,
+			.pose = proto_to_xrt_pose(&msg.frame_data.P_localSpace_view1),
+		};
+		{
+			g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->relation_history_mutex);
+			m_relation_history_push(sc->pose_history0, &rel0, msg.frame_data.display_time);
+			m_relation_history_push(sc->pose_history1, &rel1, msg.frame_data.display_time);
+		}
 	}
 
 	{
@@ -407,6 +466,7 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 		sc->sample = sample;
 		sc->sample_decode_end_ts = ts;
 		sc->received_first_frame = true;
+		sc->last_down_message = msg;
 	}
 	if (prevSample) {
 		ALOGD("Discarding unused, replaced sample");
@@ -747,6 +807,26 @@ read_down_message_from_custom_meta(GstBuffer *buffer, em_proto_DownMessage *msg)
 	return true;
 }
 
+static em_proto_Pose
+xrt_to_proto_pose(struct xrt_pose *in) {
+	em_proto_Pose out = {
+	    .has_position = true,
+	    .position = {
+		.x = in->position.x,
+	        .y = in->position.y,
+	        .z = in->position.z,
+	    },
+	    .has_orientation = true,
+	    .orientation = {
+		.x = in->orientation.x,
+	        .y = in->orientation.y,
+	        .z = in->orientation.z,
+	        .w = in->orientation.w,
+	    }
+	};
+	return out;
+}
+
 struct em_sample *
 em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode_end)
 {
@@ -758,10 +838,12 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 	// We actually pull the sample in the new-sample signal handler, so here we're just receiving the sample already
 	// pulled.
 	GstSample *sample = NULL;
+	em_proto_DownMessage msg;
 	struct timespec decode_end;
 	{
 		g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->sample_mutex);
 		sample = sc->sample;
+		msg = sc->last_down_message;
 		sc->sample = NULL;
 		decode_end = sc->sample_decode_end_ts;
 	}
@@ -781,30 +863,69 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
 	GstCaps *caps = gst_sample_get_caps(sample);
 
-	// Get DownMsg from GstCustomMeta
-	em_proto_DownMessage msg = em_proto_DownMessage_init_default;
-	if (!read_down_message_from_custom_meta(buffer, &msg)) {
-		ALOGE("Reading DownMessage from GstCustomMeta failed.");
+	bool got_pose_from_down_msg = false;
+
+	if (!msg.has_frame_data) {
+		ALOGW("Did not get a DownMessage. Using relation history fallback.");
+
+		if (sc->last_display_time_offset == -1) {
+			ALOGW("Skipping since we have never received a DownMsg before.");
+			return NULL;
+		}
+
+		int64_t now = os_monotonic_get_ns();
+		int64_t estimated_display_time = now - sc->last_display_time_offset;
+		msg.frame_data.display_time = estimated_display_time;
+		msg.frame_data.frame_sequence_id = sc->last_frame_sequence_id + 1;
+
+		struct xrt_space_relation rel0;
+		struct xrt_space_relation rel1;
+		{
+			g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->relation_history_mutex);
+			m_relation_history_get(sc->pose_history0, estimated_display_time, &rel0);
+			m_relation_history_get(sc->pose_history1, estimated_display_time, &rel1);
+		}
+
+		msg.frame_data.P_localSpace_view0 = xrt_to_proto_pose(&rel0.pose);
+		msg.frame_data.P_localSpace_view1 = xrt_to_proto_pose(&rel1.pose);
+
+		msg.has_frame_data = true;
+		msg.frame_data.has_P_localSpace_view0 = true;
+		msg.frame_data.has_P_localSpace_view1 = true;
+
+	} else {
+		got_pose_from_down_msg = true;
 	}
 
-	if (msg.has_frame_data && msg.frame_data.has_P_localSpace_view0 && msg.frame_data.has_P_localSpace_view1) {
-		ALOGD("Got DownMessage: Frame #%ld V0 (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f) display_time %ld",
-		      msg.frame_data.frame_sequence_id,
-		      msg.frame_data.P_localSpace_view0.position.x,
-		      msg.frame_data.P_localSpace_view0.position.y,
-		      msg.frame_data.P_localSpace_view0.position.z,
-		      msg.frame_data.P_localSpace_view1.position.x,
-		      msg.frame_data.P_localSpace_view1.position.y,
-		      msg.frame_data.P_localSpace_view1.position.z,
-		      msg.frame_data.display_time);
-
-		ret->base.have_poses = true;
-		ret->base.poses[0] = pose_to_openxr(&msg.frame_data.P_localSpace_view0);
-		ret->base.poses[1] = pose_to_openxr(&msg.frame_data.P_localSpace_view1);
-
-		ret->base.frame_sequence_id = msg.frame_data.frame_sequence_id;
-		ret->base.display_time = msg.frame_data.display_time;
+	if (!msg.frame_data.has_P_localSpace_view0 || !msg.frame_data.has_P_localSpace_view1) {
+		ALOGE("DownMsg has frame data but not local space view!");
+		return NULL;
 	}
+
+	ALOGD("Got DownMessage: Frame #%ld V0 (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f) display_time %ld",
+	      msg.frame_data.frame_sequence_id,
+	      msg.frame_data.P_localSpace_view0.position.x,
+	      msg.frame_data.P_localSpace_view0.position.y,
+	      msg.frame_data.P_localSpace_view0.position.z,
+	      msg.frame_data.P_localSpace_view1.position.x,
+	      msg.frame_data.P_localSpace_view1.position.y,
+	      msg.frame_data.P_localSpace_view1.position.z,
+	      msg.frame_data.display_time);
+
+	ret->base.have_poses = true;
+	ret->base.poses[0] = pose_to_openxr(&msg.frame_data.P_localSpace_view0);
+	ret->base.poses[1] = pose_to_openxr(&msg.frame_data.P_localSpace_view1);
+
+	ret->base.frame_sequence_id = msg.frame_data.frame_sequence_id;
+	ret->base.display_time = msg.frame_data.display_time;
+
+	if (got_pose_from_down_msg) {
+		int64_t now = os_monotonic_get_ns();
+		sc->last_display_time_offset = now - msg.frame_data.display_time;
+	}
+	sc->last_frame_sequence_id = msg.frame_data.frame_sequence_id;
+
+	ret->base.is_predicted = !got_pose_from_down_msg;
 
 	GstVideoInfo info;
 	gst_video_info_from_caps(&info, caps);
