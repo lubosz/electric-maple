@@ -17,6 +17,7 @@ struct ems_arguments * ems_arguments_get() {
 }
 
 gchar *output_file_name = NULL;
+static gint bitrate = 16384;
 
 gboolean ems_arguments_parse(int argc, char *argv[]) {
 
@@ -26,6 +27,7 @@ gboolean ems_arguments_parse(int argc, char *argv[]) {
   static GOptionEntry entries[] =
     {
     { "stream-output-file-path", 'o', 0, G_OPTION_ARG_FILENAME, &output_file_name, "Path to store the stream in a MKV file.", "path" },
+    { "bitrate", 'b', 0, G_OPTION_ARG_INT, &bitrate, "Stream bitrate", "N" },
     G_OPTION_ENTRY_NULL
     };
 
@@ -41,6 +43,8 @@ gboolean ems_arguments_parse(int argc, char *argv[]) {
     arguments_instance.stream_debug_file = g_file_new_for_path(output_file_name);
   }
 
+  arguments_instance.bitrate = bitrate;
+  
   g_option_context_free(context);
 
   return TRUE;
