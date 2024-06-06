@@ -25,6 +25,7 @@ struct ems_arguments
     GFile *stream_debug_file;
     uint32_t bitrate;
     EmsEncoderType encoder_type;
+    gboolean benchmark_down_msg;
 };
 
 struct ems_arguments * ems_arguments_get(void);
