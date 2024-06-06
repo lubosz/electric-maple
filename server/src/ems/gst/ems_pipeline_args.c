@@ -17,7 +17,11 @@ struct ems_arguments * ems_arguments_get() {
 }
 
 gchar *output_file_name = NULL;
+gchar *encoder_name = NULL;
+
+// defaults
 static gint bitrate = 16384;
+static EmsEncoderType default_encoder_type = EMS_ENCODER_TYPE_X264;
 
 gboolean ems_arguments_parse(int argc, char *argv[]) {
 
@@ -28,6 +32,7 @@ gboolean ems_arguments_parse(int argc, char *argv[]) {
     {
     { "stream-output-file-path", 'o', 0, G_OPTION_ARG_FILENAME, &output_file_name, "Path to store the stream in a MKV file.", "path" },
     { "bitrate", 'b', 0, G_OPTION_ARG_INT, &bitrate, "Stream bitrate", "N" },
+    { "encoder", 'e', 0, G_OPTION_ARG_STRING, &encoder_name, "Encoder (x264, nvh264)", "str" },
     G_OPTION_ENTRY_NULL
     };
 
@@ -44,7 +49,17 @@ gboolean ems_arguments_parse(int argc, char *argv[]) {
   }
 
   arguments_instance.bitrate = bitrate;
-  
+
+  if (encoder_name) {
+    if (g_strcmp0(encoder_name, "nvh264") == 0) {
+      arguments_instance.encoder_type = EMS_ENCODER_TYPE_NVH264;
+    } else if ("x264") {
+      arguments_instance.encoder_type = EMS_ENCODER_TYPE_X264;
+    }
+  } else {
+    arguments_instance.encoder_type = default_encoder_type;
+  }
+
   g_option_context_free(context);
 
   return TRUE;
