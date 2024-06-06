@@ -13,14 +13,16 @@
 #include "m_relation_history.h"
 
 #include "math/m_api.h"
-#include "math/m_predict.h"
+#include "m_predict.h"
 #include "math/m_vec3.h"
 #include "os/os_time.h"
-#include "util/u_logging.h"
-#include "util/u_trace_marker.h"
+//#include "util/u_logging.h"
+//#include "util/u_trace_marker.h"
 #include "xrt/xrt_defines.h"
 #include "os/os_threading.h"
 #include "util/u_template_historybuf.hpp"
+
+#include "em_app_log.h"
 
 #include <memory>
 #include <algorithm>
@@ -59,7 +61,6 @@ m_relation_history_create(struct m_relation_history **rh_ptr)
 bool
 m_relation_history_push(struct m_relation_history *rh, struct xrt_space_relation const *in_relation, uint64_t timestamp)
 {
-	XRT_TRACE_MARKER();
 	struct relation_history_entry rhe;
 	rhe.relation = *in_relation;
 	rhe.timestamp = timestamp;
@@ -75,7 +76,7 @@ m_relation_history_push(struct m_relation_history *rh, struct xrt_space_relation
 			ret = true;
 		}
 	} catch (std::exception const &e) {
-		U_LOG_E("Caught exception: %s", e.what());
+		ALOGE("Caught exception: %s", e.what());
 	}
 	return ret;
 }
@@ -85,7 +86,6 @@ m_relation_history_get(const struct m_relation_history *rh,
                        uint64_t at_timestamp_ns,
                        struct xrt_space_relation *out_relation)
 {
-	XRT_TRACE_MARKER();
 	std::unique_lock<os::Mutex> lock(rh->mutex);
 	try {
 		if (rh->impl.empty() || at_timestamp_ns == 0) {
@@ -111,7 +111,7 @@ m_relation_history_get(const struct m_relation_history *rh,
 			int64_t diff_prediction_ns = static_cast<int64_t>(at_timestamp_ns) - rh->impl.back().timestamp;
 			double delta_s = time_ns_to_s(diff_prediction_ns);
 
-			U_LOG_T("Extrapolating %f s past the back of the buffer!", delta_s);
+//			U_LOG_T("Extrapolating %f s past the back of the buffer!", delta_s);
 
 			m_predict_relation(&rh->impl.back().relation, delta_s, out_relation);
 			return M_RELATION_HISTORY_RESULT_PREDICTED;
@@ -119,7 +119,7 @@ m_relation_history_get(const struct m_relation_history *rh,
 		if (at_timestamp_ns == it->timestamp) {
 			// exact match:
 			// Flags copied directly along with everything else.
-			U_LOG_T("Exact match in the buffer!");
+//			U_LOG_T("Exact match in the buffer!");
 			*out_relation = it->relation;
 			return M_RELATION_HISTORY_RESULT_EXACT;
 		}
@@ -130,11 +130,11 @@ m_relation_history_get(const struct m_relation_history *rh,
 			// Output flags are the same as the input flags for the history entry we use
 			int64_t diff_prediction_ns = static_cast<int64_t>(at_timestamp_ns) - rh->impl.front().timestamp;
 			double delta_s = time_ns_to_s(diff_prediction_ns);
-			U_LOG_T("Extrapolating %f s before the front of the buffer!", delta_s);
+//			U_LOG_T("Extrapolating %f s before the front of the buffer!", delta_s);
 			m_predict_relation(&rh->impl.front().relation, delta_s, out_relation);
 			return M_RELATION_HISTORY_RESULT_REVERSE_PREDICTED;
 		}
-		U_LOG_T("Interpolating within buffer!");
+//		U_LOG_T("Interpolating within buffer!");
 
 		// We precede *it and follow *(it - 1) (which we know exists because we already handled
 		// the it = begin() case)
@@ -175,7 +175,7 @@ m_relation_history_get(const struct m_relation_history *rh,
 		return M_RELATION_HISTORY_RESULT_INTERPOLATED;
 
 	} catch (std::exception const &e) {
-		U_LOG_E("Caught exception: %s", e.what());
+		ALOGE("Caught exception: %s", e.what());
 		return M_RELATION_HISTORY_RESULT_INVALID;
 	}
 }
@@ -266,7 +266,7 @@ m_relation_history_destroy(struct m_relation_history **rh_ptr)
 	try {
 		delete rh;
 	} catch (std::exception const &e) {
-		U_LOG_E("Caught exception: %s", e.what());
+		ALOGE("Caught exception: %s", e.what());
 	}
 	*rh_ptr = NULL;
 }

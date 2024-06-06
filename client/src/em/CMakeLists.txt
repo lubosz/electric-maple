@@ -8,6 +8,10 @@ add_library(
 	em_frame_data.cpp
 	em_remote_experience.cpp
 	em_stream_client.c
+	m_relation_history.cpp
+	m_predict.c
+	m_base.cpp
+	m_quatexpmap.cpp
 	render/GLDebug.cpp
 	render/GLError.cpp
 	render/GLSwapchain.cpp

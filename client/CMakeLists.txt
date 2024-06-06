@@ -113,6 +113,8 @@ add_library(
 	)
 target_link_libraries(aux_util PUBLIC aux-includes)
 
+include_directories(/usr/include/eigen3)
+
 if(ANDROID)
 	find_library(ANDROID_LOG_LIBRARY log)
 	find_library(ANDROID_LIBRARY android)
