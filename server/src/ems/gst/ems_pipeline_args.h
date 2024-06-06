@@ -11,12 +11,14 @@
 #pragma once
 
 #include <gio/gio.h>
+#include <stdint.h>
 
 G_BEGIN_DECLS
 
 struct ems_arguments
 {
 	GFile *stream_debug_file;
+	uint32_t bitrate;
 };
 
 struct ems_arguments *
