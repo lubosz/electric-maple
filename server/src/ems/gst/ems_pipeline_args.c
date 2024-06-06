@@ -25,22 +25,23 @@ gboolean ems_arguments_parse(int argc, char *argv[]) {
 
   static GOptionEntry entries[] =
     {
-    { "stream-output-file-path", 'o', 0, G_OPTION_ARG_FILENAME, &output_file_name, "Path to store the stream in a MKV file.", "N" },
+    { "stream-output-file-path", 'o', 0, G_OPTION_ARG_FILENAME, &output_file_name, "Path to store the stream in a MKV file.", "path" },
     G_OPTION_ENTRY_NULL
     };
 
-  context = g_option_context_new ("- Elecric Maple streaming server");
-  g_option_context_add_main_entries (context, entries, NULL);
-  if (!g_option_context_parse (context, &argc, &argv, &error))
-    {
-      g_print ("option parsing failed: %s\n", error->message);
-      return FALSE;
-    }
+  context = g_option_context_new("- Elecric Maple streaming server");
+  g_option_context_add_main_entries(context, entries, NULL);
+  if (!g_option_context_parse(context, &argc, &argv, &error))
+  {
+    g_print ("option parsing failed: %s\n", error->message);
+    return FALSE;
+  }
 
-    if (output_file_name) {
-        g_print("got %s\n", output_file_name);
-	    arguments_instance.stream_debug_file = g_file_new_for_path(output_file_name);
-    }
+  if (output_file_name) {
+    arguments_instance.stream_debug_file = g_file_new_for_path(output_file_name);
+  }
 
-    return TRUE;
+  g_option_context_free(context);
+
+  return TRUE;
 }
