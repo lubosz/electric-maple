@@ -750,7 +750,6 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 
 	pipeline_str = g_strdup_printf(
 	    "appsrc name=%s ! "                                                                             //
-	    "queue ! "                                                                                      //
 	    "videoconvert ! "                                                                               //
 	    "video/x-raw,format=NV12 ! "                                                                    //
 	    "queue ! "                                                                                      //
@@ -758,7 +757,6 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	    "video/x-h264,profile=main ! "                                                                  //
 	    "%s"
 	    "queue ! "                                    //
-	    "h264parse ! "                                //
 	    "rtph264pay name=rtppay config-interval=1 ! " //
 	    "application/x-rtp,payload=96 ! "             //
 	    "tee name=%s allow-not-linked=true",
