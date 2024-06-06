@@ -20,6 +20,7 @@ ems_arguments_get()
 
 gchar *output_file_name = NULL;
 gchar *encoder_name = NULL;
+gboolean benchmark_down_msg = FALSE;
 
 // defaults
 static gint bitrate = 16384;
@@ -37,6 +38,7 @@ ems_arguments_parse(int argc, char *argv[])
 		{"stream-output-file-path", 'o', 0, G_OPTION_ARG_FILENAME, &output_file_name, "Path to store the stream in a MKV file.", "path"},
 		{"bitrate", 'b', 0, G_OPTION_ARG_INT, &bitrate, "Stream bitrate", "N"},
 		{"encoder", 'e', 0, G_OPTION_ARG_STRING, &encoder_name, "Encoder (x264, nvh264)", "str"},
+		{"benchmark-down-msg", 0, 0, G_OPTION_ARG_NONE, &benchmark_down_msg, "Benchmark DownMessage Loss", NULL},
 		G_OPTION_ENTRY_NULL,
 	};
 	// clang-format on
@@ -53,6 +55,7 @@ ems_arguments_parse(int argc, char *argv[])
 	}
 
 	arguments_instance.bitrate = bitrate;
+	arguments_instance.benchmark_down_msg = benchmark_down_msg;
 
 	if (encoder_name) {
 		if (g_strcmp0(encoder_name, "nvh264") == 0) {

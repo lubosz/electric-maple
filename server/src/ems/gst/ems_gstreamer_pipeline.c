@@ -70,6 +70,10 @@ struct ems_gstreamer_pipeline
 	guint timeout_src_id;
 
 	struct ems_callbacks *callbacks;
+
+	bool have_ever_sent_a_down_msg;
+	struct timespec last_print_time;
+	GSList *sent_down_msg_list;
 };
 
 static gboolean
@@ -256,6 +260,72 @@ data_channel_message_string_cb(GstWebRTCDataChannel *datachannel, gchar *str, st
 	U_LOG_I("Received data channel message: %s", str);
 }
 
+static int
+compare_int_ascending(gconstpointer a, gconstpointer b)
+{
+	return GPOINTER_TO_INT(a) - GPOINTER_TO_INT(b);
+}
+
+static void
+benchmark_down_msg_loss(struct ems_gstreamer_pipeline *self, GstMapInfo *map_info)
+{
+	// DownMessages are not in order here!
+	pb_istream_t our_istream = pb_istream_from_buffer(map_info->data, map_info->size);
+	em_proto_DownMessage msg;
+	bool result = pb_decode_ex(&our_istream, em_proto_DownMessage_fields, &msg, PB_DECODE_NULLTERMINATED);
+	if (!result) {
+		U_LOG_E("Decoding protobuf failed: %s downMsg_bytes size: %ld", PB_GET_ERROR(&our_istream),
+		        map_info->size);
+	} else {
+
+		if (!self->have_ever_sent_a_down_msg) {
+			clock_gettime(CLOCK_MONOTONIC, &self->last_print_time);
+			self->sent_down_msg_list = NULL;
+			self->have_ever_sent_a_down_msg = true;
+		}
+
+		self->sent_down_msg_list =
+		    g_slist_prepend(self->sent_down_msg_list, GINT_TO_POINTER((gint)msg.frame_data.frame_sequence_id));
+
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+
+		double duration_since_last_print_secs;
+		duration_since_last_print_secs = (double)(now.tv_sec - self->last_print_time.tv_sec);
+		duration_since_last_print_secs += (double)(now.tv_nsec - self->last_print_time.tv_nsec) / (double)1e9;
+
+		if (duration_since_last_print_secs >= 5.0) {
+
+			self->sent_down_msg_list = g_slist_sort(self->sent_down_msg_list, compare_int_ascending);
+
+			GSList *l = self->sent_down_msg_list;
+			gint last = -1;
+			gint down_msg_loss_accumulator = 0;
+			while (l != NULL) {
+				int current = GPOINTER_TO_INT(l->data);
+				if (last != -1) {
+					gint num_skipped = (current - last) - 1;
+					if (num_skipped > 0) {
+						// U_LOG_D("Skipped payloading %d DownMsgs (%d - %d)", num_skipped, last
+						// + 1, current - 1);
+						down_msg_loss_accumulator += num_skipped;
+					}
+				}
+				last = current;
+				l = l->next;
+			}
+
+			double skip_per_second = (double)down_msg_loss_accumulator / duration_since_last_print_secs;
+			U_LOG_D("Skipping DownMsgs at rate %.2f/second", skip_per_second);
+			clock_gettime(CLOCK_MONOTONIC, &self->last_print_time);
+
+			g_slist_free(self->sent_down_msg_list);
+			self->sent_down_msg_list = NULL;
+		}
+
+		// U_LOG_I("Adding DownMsg for Frame #%ld to RTP buffer.", msg.frame_data.frame_sequence_id);
+	}
+}
 
 GstPadProbeReturn
 rtppay_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
@@ -264,6 +334,7 @@ rtppay_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 	GstBuffer *buffer;
 	GstRTPBuffer rtp_buffer = GST_RTP_BUFFER_INIT;
+	struct ems_gstreamer_pipeline *self = user_data;
 
 	buffer = gst_pad_probe_info_get_buffer(info);
 
@@ -315,6 +386,10 @@ rtppay_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 		U_LOG_E("The RTP extension bit was not set.");
 	}
 
+	if (ems_arguments_get()->benchmark_down_msg) {
+		benchmark_down_msg_loss(self, &map_info);
+	}
+
 	gst_rtp_buffer_unmap(&rtp_buffer);
 	gst_buffer_unmap(struct_buf, &map_info);
 
@@ -337,6 +412,8 @@ ems_gstreamer_pipeline_add_payload_pad_probe(struct ems_gstreamer_pipeline *self
 		U_LOG_E("Could not find static src pad in rtppay.");
 		return false;
 	}
+
+	self->have_ever_sent_a_down_msg = false;
 
 	gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, rtppay_probe, self, NULL);
 	gst_object_unref(pad);
