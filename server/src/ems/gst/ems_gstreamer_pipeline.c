@@ -748,22 +748,36 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 		save_tee_str = g_strdup("");
 	}
 
+	gchar *encoder_str = NULL;
+	if (args->encoder_type == EMS_ENCODER_TYPE_X264) {
+		encoder_str = g_strdup_printf(
+		    "x264enc tune=zerolatency sliced-threads=true speed-preset=veryfast bframes=2 bitrate=%d",
+		    args->bitrate);
+	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVH264) {
+		encoder_str = g_strdup_printf("nvh264enc zerolatency=true bitrate=%d rc-mode=cbr preset=low-latency",
+		                              args->bitrate);
+	} else {
+		U_LOG_E("Unexpected encoder type.");
+		abort();
+	}
+
 	pipeline_str = g_strdup_printf(
-	    "appsrc name=%s ! "                                                                          //
-	    "videoconvert ! "                                                                            //
-	    "video/x-raw,format=NV12 ! "                                                                 //
-	    "queue ! "                                                                                   //
-	    "x264enc tune=zerolatency sliced-threads=true speed-preset=veryfast bframes=2 bitrate=%d ! " //
-	    "video/x-h264,profile=main ! "                                                               //
+	    "appsrc name=%s ! "            //
+	    "videoconvert ! "              //
+	    "video/x-raw,format=NV12 ! "   //
+	    "queue ! "                     //
+	    "%s ! "                        //
+	    "video/x-h264,profile=main ! " //
 	    "%s"
 	    "queue ! "                                    //
 	    "rtph264pay name=rtppay config-interval=1 ! " //
 	    "application/x-rtp,payload=96 ! "             //
 	    "tee name=%s allow-not-linked=true",
-	    appsrc_name, args->bitrate, save_tee_str, WEBRTC_TEE_NAME);
+	    appsrc_name, encoder_str, save_tee_str, WEBRTC_TEE_NAME);
 
 	g_free(debug_file_path);
 	g_free(save_tee_str);
+	g_free(encoder_str);
 
 	// no webrtc bin yet until later!
 

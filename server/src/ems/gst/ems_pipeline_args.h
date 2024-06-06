@@ -15,10 +15,17 @@
 
 G_BEGIN_DECLS
 
+typedef enum
+{
+	EMS_ENCODER_TYPE_X264,
+	EMS_ENCODER_TYPE_NVH264,
+} EmsEncoderType;
+
 struct ems_arguments
 {
 	GFile *stream_debug_file;
 	uint32_t bitrate;
+	EmsEncoderType encoder_type;
 };
 
 struct ems_arguments *
