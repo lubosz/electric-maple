@@ -841,7 +841,7 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	pipeline_str = g_strdup_printf(
 	    "appsrc name=%s ! "                //
 	    "videoconvert ! "                  //
-	    "video/x-raw,format=NV12 ! "       //
+	    "video/x-raw,format=NV12, colorimetry=(string)bt709, color-range=(string)full ! "       //
 	    "queue ! "                         //
 	    "%s ! "      //
 	    "video/x-h264,profile=main ! " //
