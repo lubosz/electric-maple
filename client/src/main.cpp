@@ -53,6 +53,8 @@
 #include <cstdlib>
 #include <ctime>
 
+#include <sys/system_properties.h>
+
 
 #define XR_LOAD(fn) xrGetInstanceProcAddr(state.instance, #fn, (PFN_xrVoidFunction *)&fn);
 
@@ -190,6 +192,52 @@ connected_cb(EmConnection *connection, struct em_state *state)
 
 } // namespace
 
+static GMutex property_read_mutex;
+static std::string property_result;
+static bool property_received = false;
+#define WEBSOCKET_URI_PROPERTY_NAME "debug.electric_maple.websocket_uri"
+
+void
+property_read_cb(void *cookie, const char *, const char *value, unsigned int serial)
+{
+	(void)cookie;
+	(void)serial;
+	g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&property_read_mutex);
+	(void)locker;
+	property_result = std::string(value);
+	property_received = true;
+	ALOGD("Got %s property: %s", WEBSOCKET_URI_PROPERTY_NAME, value);
+}
+
+std::string
+read_websocket_uri_property(uint32_t timeout_ms)
+{
+	g_mutex_init(&property_read_mutex);
+
+	const prop_info *info = __system_property_find(WEBSOCKET_URI_PROPERTY_NAME);
+	if (info != nullptr) {
+		__system_property_read_callback(info, property_read_cb, 0);
+
+		// HACK: Making this synchronous
+		auto start = std::chrono::steady_clock::now();
+		uint32_t wait_duration_ms = 0;
+
+		while (wait_duration_ms < timeout_ms) {
+			g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&property_read_mutex);
+			(void)locker;
+			if (property_received) {
+				return property_result;
+			}
+			auto now = std::chrono::steady_clock::now();
+			wait_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+		}
+		ALOGW("Timeout of %dms reached for reading %s", timeout_ms, WEBSOCKET_URI_PROPERTY_NAME);
+	} else {
+		ALOGD("%s not set.", WEBSOCKET_URI_PROPERTY_NAME);
+	}
+
+	return "";
+}
 
 void
 android_main(struct android_app *app)
@@ -353,8 +401,15 @@ android_main(struct android_app *app)
 	// retaining ownership
 	em_stream_client_set_egl_context(stream_client, egl_mutex, false, initialEglData->surface);
 
+	// Read debug.electric_maple.websocket_uri
+	std::string websocket_uri_property = read_websocket_uri_property(5000);
+
 	ALOGI("%s: creating connection object", __FUNCTION__);
-	state.connection = g_object_ref_sink(em_connection_new_localhost());
+	if (!websocket_uri_property.empty()) {
+		state.connection = g_object_ref_sink(em_connection_new(websocket_uri_property.c_str()));
+	} else {
+		state.connection = g_object_ref_sink(em_connection_new_localhost());
+	}
 
 	g_signal_connect(state.connection, "connected", G_CALLBACK(connected_cb), &state);
 
