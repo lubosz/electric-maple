@@ -298,12 +298,14 @@ android_main(struct android_app *app)
 		// ...
 	};
 
-	std::array<const char*, 0> optionalExtensions = {
+	std::array<const char*, 2> optionalExtensions = {
 		// XR_KHR_ exts
 		// ...
 		// XR_EXT_ exts
 		// ...
 		// XR_Vendor_ specific exts
+		XR_FB_PASSTHROUGH_EXTENSION_NAME,
+		XR_HTC_PASSTHROUGH_EXTENSION_NAME,
 	};
 
 	const auto supportedXrExtensions = get_supported_xr_extensions();

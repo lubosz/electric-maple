@@ -7,6 +7,7 @@
  * @brief Very simple GLES3 renderer for WebRTC client.
  * @author Moshi Turner <moses@collabora.com>
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  */
 
 #include "render.hpp"
@@ -21,6 +22,7 @@
 #include <cstdlib>
 #include <openxr/openxr.h>
 #include <stdexcept>
+#include <array>
 
 // Vertex shader source code
 static constexpr const GLchar *vertexShaderSource = R"(
@@ -35,9 +37,8 @@ static constexpr const GLchar *vertexShaderSource = R"(
     }
 )";
 
-// Fragment shader source code
-static constexpr const GLchar *fragmentShaderSource = R"(
-    #version 300 es
+static constexpr const GLchar *streamFragBaseShader = R"(
+	#version 300 es
     #extension GL_OES_EGL_image_external : require
     #extension GL_OES_EGL_image_external_essl3 : require
     precision mediump float;
@@ -45,9 +46,44 @@ static constexpr const GLchar *fragmentShaderSource = R"(
     in vec2 frag_uv;
     out vec4 frag_color;
     uniform samplerExternalOES textureSampler;
+)";
 
+// Fragment shader source code
+static constexpr const GLchar *fragmentShaderSource = R"(
     void main() {
         frag_color = texture(textureSampler, frag_uv);
+    }
+)";
+
+/*!
+ * AdditiveSimFragShader shader emulates the behaviour of XR_ENVIRONMENT_BLEND_MODE_ADDITIVE
+ * for client runtimes that do not support this mode but supports
+ * XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND or passthrough composition layers
+ * with alpha blending in the vendor extensions (e.g. XR_FB_passthrough) case.
+ */
+static constexpr const GLchar *AdditiveSimFragShader = R"(
+    /*!
+     * Note:
+     * Depending on the current encoder configuration, you may need to use different thresholds.
+     *
+     * The stream is encoded with (a 8-bit channel) limited color range by default meaning
+     * When a YUV pixel is converted to RGB using the BT.709/601 transfer function (limited-range),
+     * RGB values are in a 16-255 (chroma 16-235) range.
+     * Pure black value in this case will be ~= vec3(16/255).
+     * 
+     * If encoding config changes to use 10-bit channel encoding BT.709/2020 with limited range, the
+     * RGB values will be in a 64-940 range.
+     * Pure black value will be ~= vec3(64/1023)
+     *
+     * If full colour-range mode is used then pure black will be == vec3(0.0)
+     *
+     */
+    uniform float blackThreshold;
+    
+    void main() {
+        vec3 color = texture(textureSampler, frag_uv).rgb;
+        float alpha = all(greaterThan(vec3(blackThreshold), color)) ? 0.0 : 1.0;
+        frag_color = vec4(color, alpha);
     }
 )";
 
@@ -88,22 +124,54 @@ Renderer::setupShaders()
 
 	// Compile the fragment shader
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+	std::array<const GLchar *, 2> shaderSrcStrings = {
+		streamFragBaseShader,
+		fragmentShaderSource,
+	};
+	glShaderSource(fragmentShader, shaderSrcStrings.size(), shaderSrcStrings.data(),nullptr);
 	glCompileShader(fragmentShader);
 	checkShaderCompilation(fragmentShader);
 
+	// Compile AdditiveSim fragment shader
+	GLuint additiveSimFragShader = glCreateShader(GL_FRAGMENT_SHADER);
+	shaderSrcStrings = {
+		streamFragBaseShader,
+		AdditiveSimFragShader,
+	};
+	glShaderSource(additiveSimFragShader, shaderSrcStrings.size(), shaderSrcStrings.data(), nullptr);
+	glCompileShader(additiveSimFragShader);
+	checkShaderCompilation(additiveSimFragShader);
+
 	// Create and link the shader program
-	program = glCreateProgram();
+	const GLuint program = glCreateProgram();
 	glAttachShader(program, vertexShader);
 	glAttachShader(program, fragmentShader);
 	glLinkProgram(program);
 	checkProgramLinking(program);
 
+	const GLuint additiveSimProgram = glCreateProgram();
+	glAttachShader(additiveSimProgram, vertexShader);
+	glAttachShader(additiveSimProgram, additiveSimFragShader);
+	glLinkProgram(additiveSimProgram);
+	checkProgramLinking(additiveSimProgram);
+
 	// Clean up the shaders as they're no longer needed
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
+	glDeleteShader(additiveSimFragShader);
 
-	textureSamplerLocation_ = glGetUniformLocation(program, "textureSampler");
+	const GLchar* const samplerName = "textureSampler";
+	programs = {
+		Program {
+			.id = program,
+			.textureSamplerLocation = glGetUniformLocation(program, samplerName),
+		},
+		Program {
+			.id = additiveSimProgram,
+			.textureSamplerLocation = glGetUniformLocation(additiveSimProgram, samplerName),
+			.blackThresholdLocation = glGetUniformLocation(additiveSimProgram, "blackThreshold"),
+		}
+	};
 }
 
 struct TextureCoord
@@ -167,10 +235,13 @@ Renderer::setupRender()
 void
 Renderer::reset()
 {
-	if (program != 0) {
-		glDeleteProgram(program);
-		program = 0;
+	for (auto& program : programs) {
+		if (program.id != 0) {
+			glDeleteProgram(program.id);
+			program = {};
+		}
 	}
+
 	if (quadVAO != 0) {
 		glDeleteVertexArrays(1, &quadVAO);
 		quadVAO = 0;
@@ -182,18 +253,23 @@ Renderer::reset()
 }
 
 void
-Renderer::draw(GLuint texture, GLenum texture_target) const
+Renderer::draw(const Renderer::DrawInfo& drawInfo) const
 {
 	//    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
 	// Use the shader program
-	glUseProgram(program);
+	const auto& program = programs[drawInfo.alpha_for_additive.enable];
+	glUseProgram(program.id);
 
 	// Bind the texture
 	glActiveTexture(GL_TEXTURE0);
 	// glBindTexture(GL_TEXTURE_2D, texture);
-	glBindTexture(texture_target, texture);
-	glUniform1i(textureSamplerLocation_, 0);
+	glBindTexture(drawInfo.texture_target, drawInfo.texture);
+	glUniform1i(program.textureSamplerLocation, 0);
+	
+	if (drawInfo.alpha_for_additive.enable) {
+		glUniform1f(program.blackThresholdLocation, drawInfo.alpha_for_additive.black_threshold);
+	}
 
 	// Draw the quad
 	glBindVertexArray(quadVAO);

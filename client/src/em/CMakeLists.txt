@@ -8,6 +8,7 @@ add_library(
 	em_frame_data.cpp
 	em_remote_experience.cpp
 	em_stream_client.c
+	em_passthrough.cpp
 	render/GLDebug.cpp
 	render/GLError.cpp
 	render/GLSwapchain.cpp
