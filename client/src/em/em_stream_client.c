@@ -46,6 +46,11 @@
 
 #define EM_DEFAULT_BLACK_TO_ALPHA_THRESHOLD (16.f/255.f)
 
+// Thresholds for reusing last DownMsg when we received too many frames without DownMsgs in a row.
+#define EM_NO_DOWN_MSG_FALLBACK_TIMEOUT_SECS 1
+#define EM_NO_DOWN_MSG_FALLBACK_SKIPPED_FRAME_THRESHOLD 10
+
+
 void
 em_gst_message_debug(const char *function, GstMessage *msg);
 
@@ -105,6 +110,10 @@ struct _EmStreamClient
 	GMutex sample_mutex;
 	GstSample *sample;
 	struct timespec sample_decode_end_ts;
+
+	GMutex skipped_frames_mutex;
+	uint32_t skipped_frames;
+	em_proto_DownMessage last_down_msg;
 };
 
 #if 0
@@ -219,6 +228,9 @@ em_stream_client_init(EmStreamClient *sc)
 	if (info == NULL) {
 		ALOGE("Failed to register custom meta 'down-message'.");
 	}
+
+	g_mutex_init(&sc->skipped_frames_mutex);
+	sc->skipped_frames = 0;
 
 	ALOGI("%s: done creating stuff", __FUNCTION__);
 }
@@ -397,10 +409,36 @@ on_new_sample_cb(GstAppSink *appsink, gpointer user_data)
 	g_assert_nonnull(sample);
 
 	// drop it like it's hot
+	bool drop_frame = false;
+
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
 	GstCustomMeta *custom_meta = gst_buffer_get_custom_meta(buffer, "down-message");
 	if (!custom_meta) {
-		ALOGD("sample_cb: Dropping buffer without down-message.");
+		ALOGW("sample_cb: Dropping buffer without down-message.");
+		drop_frame = true;
+	}
+
+
+	long last_frame_diff_sec = ts.tv_sec - sc->sample_decode_end_ts.tv_sec;
+	if (last_frame_diff_sec >= EM_NO_DOWN_MSG_FALLBACK_TIMEOUT_SECS) {
+		ALOGW("sample_cb: Not dropping frame, since we haven't had one since a second.");
+		drop_frame = false;
+	}
+
+	bool skipped_frames_threshold_reached = false;
+	{
+		g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->skipped_frames_mutex);
+		if (sc->skipped_frames >= EM_NO_DOWN_MSG_FALLBACK_SKIPPED_FRAME_THRESHOLD) {
+			skipped_frames_threshold_reached = true;
+		}
+	}
+
+	if (skipped_frames_threshold_reached) {
+		ALOGW("sample_cb: Not dropping frame, since we already skipped 10 frames.");
+		drop_frame = false;
+	}
+
+	if (drop_frame) {
 		return GST_FLOW_OK;
 	}
 
@@ -774,9 +812,19 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 			ALOGW("%s: EOS", __FUNCTION__);
 			// TODO trigger teardown?
 		}
-		ALOGW("pull_sample: The latest sample is NULL.");
+		{
+			g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->skipped_frames_mutex);
+			sc->skipped_frames += 1;
+			ALOGW("pull_sample: The latest sample is NULL. Skipped %d frames.", sc->skipped_frames);
+		}
 		return NULL;
 	}
+
+	{
+		g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->skipped_frames_mutex);
+		sc->skipped_frames = 0;
+	}
+
 	*out_decode_end = decode_end;
 
 	struct em_sc_sample *ret = calloc(1, sizeof(struct em_sc_sample));
@@ -788,7 +836,8 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 	// Get DownMsg from GstCustomMeta
 	em_proto_DownMessage msg = em_proto_DownMessage_init_default;
 	if (!read_down_message_from_custom_meta(buffer, &msg)) {
-		ALOGE("Reading DownMessage from GstCustomMeta failed.");
+		ALOGE("Reading DownMessage from GstCustomMeta failed. Reusing last one");
+		msg = sc->last_down_msg;
 	}
 
 	if (msg.has_frame_data) {
@@ -813,6 +862,8 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 
 			ret->base.frame_sequence_id = msg.frame_data.frame_sequence_id;
 			ret->base.display_time = msg.frame_data.display_time;
+
+			sc->last_down_msg = msg;
 		}
 	}
 
