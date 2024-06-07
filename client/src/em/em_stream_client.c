@@ -5,6 +5,7 @@
  * @file
  * @brief  Pipeline module ElectricMaple XR streaming solution
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup em_client
  */
 
@@ -42,6 +43,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define EM_DEFAULT_BLACK_TO_ALPHA_THRESHOLD (16.f/255.f)
 
 void
 em_gst_message_debug(const char *function, GstMessage *msg);
@@ -777,6 +780,7 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 	*out_decode_end = decode_end;
 
 	struct em_sc_sample *ret = calloc(1, sizeof(struct em_sc_sample));
+	ret->base.additive_black_threshold = EM_DEFAULT_BLACK_TO_ALPHA_THRESHOLD;
 
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
 	GstCaps *caps = gst_sample_get_caps(sample);
@@ -787,23 +791,29 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 		ALOGE("Reading DownMessage from GstCustomMeta failed.");
 	}
 
-	if (msg.has_frame_data && msg.frame_data.has_P_localSpace_view0 && msg.frame_data.has_P_localSpace_view1) {
-		ALOGD("Got DownMessage: Frame #%ld V0 (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f) display_time %ld",
-		      msg.frame_data.frame_sequence_id,
-		      msg.frame_data.P_localSpace_view0.position.x,
-		      msg.frame_data.P_localSpace_view0.position.y,
-		      msg.frame_data.P_localSpace_view0.position.z,
-		      msg.frame_data.P_localSpace_view1.position.x,
-		      msg.frame_data.P_localSpace_view1.position.y,
-		      msg.frame_data.P_localSpace_view1.position.z,
-		      msg.frame_data.display_time);
+	if (msg.has_frame_data) {
 
-		ret->base.have_poses = true;
-		ret->base.poses[0] = pose_to_openxr(&msg.frame_data.P_localSpace_view0);
-		ret->base.poses[1] = pose_to_openxr(&msg.frame_data.P_localSpace_view1);
+		ret->base.env_blend_mode = msg.frame_data.env_blend_mode;
+		ret->base.additive_black_threshold = msg.frame_data.black_to_alpha_threshold;
 
-		ret->base.frame_sequence_id = msg.frame_data.frame_sequence_id;
-		ret->base.display_time = msg.frame_data.display_time;
+		if (msg.frame_data.has_P_localSpace_view0 && msg.frame_data.has_P_localSpace_view1) {
+			ALOGD("Got DownMessage: Frame #%ld V0 (%.2f %.2f %.2f) V1 (%.2f %.2f %.2f) display_time %ld",
+				msg.frame_data.frame_sequence_id,
+				msg.frame_data.P_localSpace_view0.position.x,
+				msg.frame_data.P_localSpace_view0.position.y,
+				msg.frame_data.P_localSpace_view0.position.z,
+				msg.frame_data.P_localSpace_view1.position.x,
+				msg.frame_data.P_localSpace_view1.position.y,
+				msg.frame_data.P_localSpace_view1.position.z,
+				msg.frame_data.display_time);
+
+			ret->base.have_poses = true;
+			ret->base.poses[0] = pose_to_openxr(&msg.frame_data.P_localSpace_view0);
+			ret->base.poses[1] = pose_to_openxr(&msg.frame_data.P_localSpace_view1);
+
+			ret->base.frame_sequence_id = msg.frame_data.frame_sequence_id;
+			ret->base.display_time = msg.frame_data.display_time;
+		}
 	}
 
 	GstVideoInfo info;

@@ -15,6 +15,7 @@
 #include "em_app_log.h"
 #include "em_connection.h"
 #include "em_stream_client.h"
+#include "em_passthrough.hpp"
 #include "gst_common.h"
 #include "render/GLSwapchain.h"
 #include "render/render.hpp"
@@ -31,6 +32,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
+#include <array>
 #include <vector>
 #include <string>
 #include <exception>
@@ -49,6 +51,8 @@ struct _EmRemoteExperience
 
 	XrExtent2Di eye_extents;
 
+	using PassthroughPtr = std::unique_ptr<em::Passthrough>;
+	PassthroughPtr passthrough{};
 
 	PFN_xrConvertTimespecTimeToTimeKHR convertTimespecTimeToTime;
 
@@ -225,6 +229,12 @@ em_remote_experience_new(EmConnection *connection,
 		}
 	}
 
+	self->passthrough = em::make_passthrough(em::XrContext{
+		.instance = xr_info->instance,
+		.session  = xr_info->session,
+		.enabled_extensions = &self->xr_owned.enabledExtensions,
+	});
+
 	// Quest requires the EGL context to be current when calling xrCreateSwapchain
 	em_stream_client_egl_begin_pbuffer(stream_client);
 
@@ -305,6 +315,9 @@ em_remote_experience_new(EmConnection *connection,
 		}
 	}
 
+	// If possible start the client with passthrough enabled.
+	self->passthrough->set_blend_mode(XR_ENVIRONMENT_BLEND_MODE_ADDITIVE);
+
 	ALOGI("%s: done", __FUNCTION__);
 	return self;
 }
@@ -376,17 +389,21 @@ em_remote_experience_poll_and_render_frame(EmRemoteExperience *exp)
 		return EM_POLL_RENDER_RESULT_SHOULD_NOT_RENDER;
 	}
 
-	XrCompositionLayerProjection layer = {};
-	layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
-	layer.viewCount = 2;
+	std::array<const XrCompositionLayerBaseHeader*,2> layers{nullptr,nullptr};
+	std::uint32_t layerCount = 0;
 
 	// TODO use multiview/array swapchain instead of two draw calls for side by side?
-	XrCompositionLayerProjectionView projectionViews[2] = {};
-	projectionViews[0].type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
-
-	projectionViews[1].type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
-
-	layer.views = projectionViews;
+	XrCompositionLayerProjectionView projectionViews[2] = {
+		{.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW, .next = nullptr },
+		{.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW, .next = nullptr },
+	};
+	XrCompositionLayerProjection layer = {
+		.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+		.next = nullptr,
+		.layerFlags = 0,
+		.viewCount = 2,
+		.views = projectionViews,
+	};
 
 	// Render
 
@@ -394,20 +411,32 @@ em_remote_experience_poll_and_render_frame(EmRemoteExperience *exp)
 		ALOGE("FRED: mainloop_one: Failed make egl context current");
 		return EM_POLL_RENDER_RESULT_ERROR_EGL;
 	}
+
+	auto envBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
 	bool shouldRender = frameState.shouldRender == XR_TRUE;
 	EmPollRenderResult prResult = EM_POLL_RENDER_RESULT_SHOULD_NOT_RENDER;
 	if (shouldRender) {
 		prResult = em_remote_experience_inner_poll_and_render_frame(
 		    exp, &beginTime, frameState.predictedDisplayTime, views, &layer, projectionViews);
+		
+		const auto passthroughLayer = exp->passthrough->composition_layer();
+		envBlendMode = passthroughLayer.env_blend_mode;		
+		if (passthroughLayer.comp_layer) {
+			layers[layerCount++] = passthroughLayer.comp_layer;
+		}
+		if (em_poll_render_result_include_layer(prResult)) {
+			layer.layerFlags |= passthroughLayer.projection_layer_flags;
+			layers[layerCount++] = (const XrCompositionLayerBaseHeader*)&layer;
+		}
 	}
 
 	// Submit frame
 	XrFrameEndInfo endInfo = {};
 	endInfo.type = XR_TYPE_FRAME_END_INFO;
 	endInfo.displayTime = frameState.predictedDisplayTime;
-	endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-	endInfo.layerCount = em_poll_render_result_include_layer(prResult) ? 1 : 0;
-	endInfo.layers = (const XrCompositionLayerBaseHeader *[1]){(XrCompositionLayerBaseHeader *)&layer};
+	endInfo.environmentBlendMode = envBlendMode;
+	endInfo.layerCount = layerCount;
+	endInfo.layers = layerCount == 0 ? nullptr : layers.data();
 
 	xrEndFrame(session, &endInfo);
 
@@ -495,6 +524,13 @@ em_remote_experience_inner_poll_and_render_frame(EmRemoteExperience *exp,
 		}
 		return EM_POLL_RENDER_RESULT_NO_SAMPLE_AVAILABLE;
 	}
+	
+	float additive_black_to_alpha_threshold = DefaultBlackThreshold;
+	if (sample->env_blend_mode != 0) {
+		const auto envBlendMode = static_cast<XrEnvironmentBlendMode>(sample->env_blend_mode);
+		exp->passthrough->set_blend_mode(envBlendMode);
+		additive_black_to_alpha_threshold = sample->additive_black_threshold;
+	}
 
 	projectionViews[0].pose = sample->poses[0];
 	projectionViews[1].pose = sample->poses[1];
@@ -526,12 +562,19 @@ em_remote_experience_inner_poll_and_render_frame(EmRemoteExperience *exp,
 	glBindFramebuffer(GL_FRAMEBUFFER, exp->swapchainBuffers.framebufferNameAtSwapchainIndex(imageIndex));
 
 	glViewport(0, 0, width * 2, height);
-	glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
 
-	// for (uint32_t eye = 0; eye < 2; eye++) {
-	// 	glViewport(eye * width, 0, width, height);
-	exp->renderer->draw(sample->frame_texture_id, sample->frame_texture_target);
-	// }
+	const auto clearColor = exp->passthrough->clear_color();
+	glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+
+	const Renderer::DrawInfo drawInfo = {
+		.texture = sample->frame_texture_id,
+		.texture_target = sample->frame_texture_target,
+		.alpha_for_additive = {
+			.enable = exp->passthrough->use_alpha_blend_for_additive(),
+			.black_threshold = additive_black_to_alpha_threshold,
+		},
+	};
+	exp->renderer->draw(drawInfo);
 
 	// Release
 

@@ -12,6 +12,7 @@
  * @author Jakob Bornecrantz <jakob@collabora.com>
  * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  * @author Rylie Pavlik <rylie.pavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup comp_ems
  */
 
@@ -129,6 +130,10 @@ struct ems_compositor
 	struct vk_image_readback_to_xf_pool *pool = nullptr;
 	int image_sequence;
 	struct u_sink_debug debug_sink;
+
+	struct {
+		u_var_draggable_f32 black_threshold;
+	} alpha_for_additive_mode = {};
 
 	struct
 	{

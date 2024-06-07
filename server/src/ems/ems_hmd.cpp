@@ -10,6 +10,7 @@
  * @author Jakob Bornecrantz <jakob@collabora.com>
  * @author Rylie Pavlik <rylie.pavlik@collabora.com>
  * @author Moshi Turner <moses@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup drv_ems
  */
 
@@ -228,6 +229,7 @@ ems_hmd_create(ems_instance &emsi)
 	// This list should be ordered, most preferred first.
 	size_t idx = 0;
 	eh->base.hmd->blend_modes[idx++] = XRT_BLEND_MODE_OPAQUE;
+	eh->base.hmd->blend_modes[idx++] = XRT_BLEND_MODE_ADDITIVE;
 	eh->base.hmd->blend_mode_count = idx;
 
 	// TODO: Find out the framerate that the remote device runs at

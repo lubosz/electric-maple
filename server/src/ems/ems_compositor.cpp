@@ -12,6 +12,7 @@
  * @author Jakob Bornecrantz <jakob@collabora.com>
  * @author Lubosz Sarnecki <lubosz.sarnecki@collabora.com>
  * @author Rylie Pavlik <rylie.pavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup comp_ems
  */
 
@@ -26,6 +27,7 @@
 #include "util/u_misc.h"
 #include "util/u_time.h"
 #include "util/u_debug.h"
+#include "util/u_var.h"
 #include "util/u_verify.h"
 #include "util/u_handles.h"
 #include "util/u_trace_marker.h"
@@ -64,6 +66,7 @@
 
 
 DEBUG_GET_ONCE_LOG_OPTION(log, "XRT_COMPOSITOR_LOG", U_LOGGING_INFO)
+DEBUG_GET_ONCE_FLOAT_OPTION(additive_black_threshold, "XRT_ADDITIVE_BLACK_THRESHOLD", (16.f/255.f))
 
 
 /*
@@ -363,7 +366,8 @@ pack_blit_and_encode(struct ems_compositor *c,
                      const struct xrt_layer_projection_view_data *lvd,
                      const struct xrt_layer_projection_view_data *rvd,
                      struct comp_swapchain *lsc,
-                     struct comp_swapchain *rsc)
+                     struct comp_swapchain *rsc,
+					 enum xrt_blend_mode env_blend_mode)
 {
 	if (c->offset_ns == 0) {
 		uint64_t now = os_monotonic_get_ns();
@@ -536,6 +540,8 @@ pack_blit_and_encode(struct ems_compositor *c,
 	msg.frame_data.P_localSpace_view0 = to_proto(lvd->pose);
 	msg.frame_data.has_P_localSpace_view1 = true;
 	msg.frame_data.P_localSpace_view1 = to_proto(rvd->pose);
+	msg.frame_data.env_blend_mode = (em_proto_EnvBlendMode)env_blend_mode;
+	msg.frame_data.black_to_alpha_threshold = c->alpha_for_additive_mode.black_threshold.val;
 
 	wrap = NULL; // important to keep this line after setting "msg.frame_sequence_id" above.
 
@@ -677,6 +683,8 @@ ems_compositor_layer_commit(struct xrt_compositor *xc, xrt_graphics_sync_handle_
 		u_pc_mark_point(c->upc, U_TIMING_POINT_BEGIN, frame_id, now_ns);
 	}
 
+	enum xrt_blend_mode env_blend_mode = c->base.slot.data.env_blend_mode;
+
 	// We want to render here. comp_base filled c->base.slot.layers for us.
 	for (uint32_t i = 0; i < c->base.slot.layer_count; i++) {
 		comp_layer &layer = c->base.slot.layers[i];
@@ -690,7 +698,7 @@ ems_compositor_layer_commit(struct xrt_compositor *xc, xrt_graphics_sync_handle_
 			struct comp_swapchain *left = layer.sc_array[0];
 			struct comp_swapchain *right = layer.sc_array[1];
 
-			pack_blit_and_encode(c, lvd, rvd, left, right);
+			pack_blit_and_encode(c, lvd, rvd, left, right, env_blend_mode);
 		} break;
 		case XRT_LAYER_STEREO_PROJECTION: {
 			const struct xrt_layer_stereo_projection_data *stereo = &layer.data.stereo;
@@ -700,7 +708,7 @@ ems_compositor_layer_commit(struct xrt_compositor *xc, xrt_graphics_sync_handle_
 			struct comp_swapchain *left = layer.sc_array[0];
 			struct comp_swapchain *right = layer.sc_array[1];
 
-			pack_blit_and_encode(c, lvd, rvd, left, right);
+			pack_blit_and_encode(c, lvd, rvd, left, right, env_blend_mode);
 		} break;
 		default: U_LOG_E("Unhandled layer type %d", layer.data.type); break;
 		}
@@ -854,6 +862,13 @@ ems_compositor_create_system(ems_instance &emsi, struct xrt_system_compositor **
 	c->frame.rendering.id = -1;
 	c->state = EMS_COMP_COMP_STATE_READY;
 
+
+	struct u_var_draggable_f32 *black_threshold = &c->alpha_for_additive_mode.black_threshold;
+	black_threshold->val = debug_get_float_option_additive_black_threshold();
+	black_threshold->min = 0.f;
+	black_threshold->step = 0.001f;
+	black_threshold->max = 1.f;
+
 	xrt_device *xdev = emsi.xsysd_base.roles.head;
 
 	c->settings.frame_interval_ns = xdev->hmd->screens[0].nominal_frame_interval_ns;
@@ -888,8 +903,9 @@ ems_compositor_create_system(ems_instance &emsi, struct xrt_system_compositor **
 	    VK_FORMAT_R8G8B8A8_UNORM);       // vk_format
 
 	u_var_add_root(c, "Electric Maple Server compositor", 0);
+	u_var_add_draggable_f32(c, &c->alpha_for_additive_mode.black_threshold, "Additive Black Threshold");
 	u_var_add_sink_debug(c, &c->debug_sink, "Debug Sink");
-
+	
 #define EMS_APPSRC_NAME "EMS_source"
 
 	ems_gstreamer_pipeline_create(&c->xfctx, EMS_APPSRC_NAME, emsi.callbacks, &c->gstreamer_pipeline);
