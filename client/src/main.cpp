@@ -7,6 +7,7 @@
  * @brief Main file for WebRTC client.
  * @author Moshi Turner <moses@collabora.com>
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  */
 #include "EglData.hpp"
 #include "em/em_egl.h"
@@ -45,7 +46,10 @@
 #include <thread>
 #include <unistd.h>
 
+#include <algorithm>
 #include <array>
+#include <vector>
+#include <string>
 #include <assert.h>
 #include <cmath>
 #include <cstdlib>
@@ -188,6 +192,55 @@ connected_cb(EmConnection *connection, struct em_state *state)
 
 } // namespace
 
+static std::vector<std::string>
+get_supported_xr_extensions() {
+
+	std::vector<std::string> results;
+	
+	const auto add_extensions = [&](const char* layerName) {
+		uint32_t instanceExtensionCount = 0;
+		if (XR_FAILED(xrEnumerateInstanceExtensionProperties(layerName, 0, &instanceExtensionCount, nullptr))) {
+			return;
+		}
+
+		std::vector<XrExtensionProperties> extensions(instanceExtensionCount, {
+			.type = XR_TYPE_EXTENSION_PROPERTIES,
+			.next = nullptr
+		});
+		if (XR_FAILED(xrEnumerateInstanceExtensionProperties(layerName, (uint32_t)extensions.size(), &instanceExtensionCount,
+			extensions.data()))) {
+			return;
+		}
+
+		for (const XrExtensionProperties& extension : extensions) {
+			results.push_back(extension.extensionName);
+		}
+	};
+
+	// add non-layer extensions (layerName==nullptr).
+	add_extensions(nullptr);
+
+	// add layers extensions.
+	{
+		uint32_t layerCount = 0;
+		if (XR_FAILED(xrEnumerateApiLayerProperties(0, &layerCount, nullptr))) {
+			goto lastStep;
+		}
+		std::vector<XrApiLayerProperties> layers(layerCount, {
+			.type = XR_TYPE_API_LAYER_PROPERTIES,
+			.next = nullptr
+		});
+		if (XR_FAILED(xrEnumerateApiLayerProperties((uint32_t)layers.size(), &layerCount, layers.data()))) {
+			goto lastStep;
+		}
+		for (const XrApiLayerProperties& layer : layers) {
+			add_extensions(layer.layerName);
+		}
+	}
+lastStep:	
+	std::sort(results.begin(), results.end());
+	return results;
+}
 
 void
 android_main(struct android_app *app)
@@ -234,10 +287,33 @@ android_main(struct android_app *app)
 	}
 
 	// Create OpenXR instance
+	std::vector<const char *> requiredExtensions = {
+		// XR_KHR_ exts
+		XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
+		XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME,
+		XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME,
+		// XR_EXT_ exts
+		// ...
+		// XR_Vendor_ specific exts
+		// ...
+	};
 
-	const char *extensions[] = {XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
-	                            XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME,
-	                            XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME};
+	std::array<const char*, 0> optionalExtensions = {
+		// XR_KHR_ exts
+		// ...
+		// XR_EXT_ exts
+		// ...
+		// XR_Vendor_ specific exts
+	};
+
+	const auto supportedXrExtensions = get_supported_xr_extensions();
+	
+	for (const auto optionalExtName : optionalExtensions) {
+		const auto itr = std::find(supportedXrExtensions.begin(), supportedXrExtensions.end(), optionalExtName);
+		if (itr != supportedXrExtensions.end()) {
+			requiredExtensions.push_back(optionalExtName);
+		}
+	}
 
 	XrInstanceCreateInfoAndroidKHR androidInfo = {};
 	androidInfo.type = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
@@ -255,9 +331,8 @@ android_main(struct android_app *app)
 	instanceInfo.applicationInfo.applicationName[XR_MAX_APPLICATION_NAME_SIZE - 1] = '\0';
 
 	instanceInfo.applicationInfo.apiVersion = XR_API_VERSION_1_0;
-	instanceInfo.enabledExtensionCount = sizeof(extensions) / sizeof(extensions[0]);
-	instanceInfo.enabledExtensionNames = extensions;
-
+	instanceInfo.enabledExtensionCount = (std::uint32_t)requiredExtensions.size();
+	instanceInfo.enabledExtensionNames = requiredExtensions.data();
 
 	result = xrCreateInstance(&instanceInfo, &state.instance);
 
@@ -362,9 +437,15 @@ android_main(struct android_app *app)
 	ALOGI("%s: starting stream client mainloop thread", __FUNCTION__);
 	em_stream_client_spawn_thread(stream_client, state.connection);
 
-	XrExtent2Di eye_extents{static_cast<int32_t>(state.width), static_cast<int32_t>(state.height)};
+	const EmXrInfo em_xr_info = {
+		.instance = state.instance,
+		.session  = state.session,
+		.eye_extents = {static_cast<int32_t>(state.width), static_cast<int32_t>(state.height)},
+		.enabled_extensions_count = (uint32_t)requiredExtensions.size(),
+		.enabled_extensions = requiredExtensions.data(),
+	};
 	EmRemoteExperience *remote_experience =
-	    em_remote_experience_new(state.connection, stream_client, state.instance, state.session, &eye_extents);
+	    em_remote_experience_new(state.connection, stream_client, &em_xr_info);
 	if (!remote_experience) {
 		ALOGE("%s: Failed during remote experience init.", __FUNCTION__);
 		return;

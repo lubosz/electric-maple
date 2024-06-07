@@ -6,6 +6,7 @@
  * @file
  * @brief  Implementation for remote experience object
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup em_client
  */
 
@@ -30,6 +31,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
+#include <vector>
+#include <string>
 #include <exception>
 #include <linux/time.h>
 #include <memory>
@@ -59,6 +62,7 @@ struct _EmRemoteExperience
 
 	struct
 	{
+		std::vector<std::string> enabledExtensions;
 		XrSpace worldSpace;
 		XrSpace viewSpace;
 		XrSwapchain swapchain;
@@ -185,22 +189,32 @@ em_remote_experience_finalize(EmRemoteExperience *exp)
 EmRemoteExperience *
 em_remote_experience_new(EmConnection *connection,
                          EmStreamClient *stream_client,
-                         XrInstance instance,
-                         XrSession session,
-                         const XrExtent2Di *eye_extents)
+						 const EmXrInfo* xr_info)
 {
-	EmRemoteExperience *self = reinterpret_cast<EmRemoteExperience *>(calloc(1, sizeof(EmRemoteExperience)));
+	if (xr_info == NULL) {
+		ALOGE("%s: xr_info is null, an EmXrInfo instance must be provided.\n", __FUNCTION__);
+		return nullptr;
+	}
+
+	EmRemoteExperience *self = new EmRemoteExperience();
 	self->connection = g_object_ref_sink(connection);
 	// self->stream_client = g_object_ref_sink(stream_client);
 	self->stream_client = stream_client;
-	self->eye_extents = *eye_extents;
-	self->xr_not_owned.instance = instance;
-	self->xr_not_owned.session = session;
+	self->eye_extents = xr_info->eye_extents;
+	self->xr_not_owned.instance = xr_info->instance;
+	self->xr_not_owned.session = xr_info->session;
+
+	if (xr_info->enabled_extensions != nullptr) {
+		self->xr_owned.enabledExtensions.reserve(xr_info->enabled_extensions_count);
+		for (std::size_t idx = 0; idx < xr_info->enabled_extensions_count; ++idx) {
+			self->xr_owned.enabledExtensions.push_back(xr_info->enabled_extensions[idx]);
+		}
+	}
 
 	// Get the extension function for converting times.
 	{
 		XrResult result =
-		    xrGetInstanceProcAddr(instance, "xrConvertTimespecTimeToTimeKHR",
+		    xrGetInstanceProcAddr(xr_info->instance, "xrConvertTimespecTimeToTimeKHR",
 		                          reinterpret_cast<PFN_xrVoidFunction *>(&self->convertTimespecTimeToTime));
 
 		if (XR_FAILED(result)) {
@@ -228,7 +242,7 @@ em_remote_experience_new(EmConnection *connection,
 		swapchainInfo.arraySize = 1;
 		swapchainInfo.mipCount = 1;
 
-		XrResult result = xrCreateSwapchain(session, &swapchainInfo, &self->xr_owned.swapchain);
+		XrResult result = xrCreateSwapchain(xr_info->session, &swapchainInfo, &self->xr_owned.swapchain);
 
 		if (XR_FAILED(result)) {
 			ALOGE("%s: Failed to create OpenXR swapchain (%d)\n", __FUNCTION__, result);
@@ -273,7 +287,7 @@ em_remote_experience_new(EmConnection *connection,
 		    .poseInReferenceSpace = {{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}}};
 
 
-		result = xrCreateReferenceSpace(session, &spaceInfo, &self->xr_owned.worldSpace);
+		result = xrCreateReferenceSpace(xr_info->session, &spaceInfo, &self->xr_owned.worldSpace);
 
 		if (XR_FAILED(result)) {
 			ALOGE("%s: Failed to create world reference space (%d)", __FUNCTION__, result);
@@ -282,7 +296,7 @@ em_remote_experience_new(EmConnection *connection,
 		}
 		spaceInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
 
-		result = xrCreateReferenceSpace(session, &spaceInfo, &self->xr_owned.viewSpace);
+		result = xrCreateReferenceSpace(xr_info->session, &spaceInfo, &self->xr_owned.viewSpace);
 
 		if (XR_FAILED(result)) {
 			ALOGE("%s: Failed to create view reference space (%d)", __FUNCTION__, result);
@@ -308,7 +322,7 @@ em_remote_experience_destroy(EmRemoteExperience **ptr_exp)
 	}
 	em_remote_experience_dispose(exp);
 	em_remote_experience_finalize(exp);
-	free(exp);
+	delete exp;
 	*ptr_exp = NULL;
 }
 
