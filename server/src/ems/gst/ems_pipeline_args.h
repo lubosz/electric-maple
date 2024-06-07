@@ -18,6 +18,7 @@ G_BEGIN_DECLS
 typedef enum {
   EMS_ENCODER_TYPE_X264,
   EMS_ENCODER_TYPE_NVH264,
+  EMS_ENCODER_TYPE_VAAPI,
 } EmsEncoderType;
 
 struct ems_arguments

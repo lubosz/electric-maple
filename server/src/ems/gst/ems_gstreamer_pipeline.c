@@ -833,6 +833,10 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 		encoder_str = g_strdup_printf(
 			"nvh264enc zerolatency=true bitrate=%d rc-mode=cbr preset=low-latency",
 			args->bitrate);
+	} else if (args->encoder_type == EMS_ENCODER_TYPE_VAAPI) {
+		encoder_str = g_strdup_printf(
+			"vaapih264enc bitrate=%d rate-control=cbr aud=true cabac=true quality-level=7",
+			args->bitrate);
 	} else {
 		U_LOG_E("Unexpected encoder type.");
 		abort();
