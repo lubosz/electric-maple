@@ -6,6 +6,7 @@
  * @file
  * @brief  Header for full remote experience object
  * @author Rylie Pavlik <rpavlik@collabora.com>
+ * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup em_client
  */
 
@@ -62,6 +63,19 @@ em_poll_render_result_to_string(EmPollRenderResult res)
 	}
 }
 
+typedef struct EmXrInfo {
+	// @param instance Your OpenXR instance: we only observe, do not take ownership.
+	XrInstance  instance;
+	// @param session Your OpenXR session: we only observe, do not take ownership.
+	XrSession   session;
+	// @param eye_extents Dimensions of the eye swapchain (max)
+	XrExtent2Di eye_extents;	
+	// @param enabled_extensions_count size of the list of enabled_extensions
+	uint32_t    enabled_extensions_count;
+	// @param enabled_extensions the list of enabled extension names for the given @ref instance.
+	const char** enabled_extensions;
+} EmXrInfo;
+
 /**
  * Create a remote experience object, which interacts with the stream client and OpenXR to provide a remotely-rendered
  * OpenXR experience.
@@ -70,18 +84,14 @@ em_poll_render_result_to_string(EmPollRenderResult res)
  *
  * @param connection Your connection: we sink a ref. Used to send reports upstream.
  * @param stream_client Your stream client: we take ownership.
- * @param instance Your OpenXR instance: we only observe, do not take ownership.
- * @param session Your OpenXR session: we only observe, do not take ownership.
- * @param eye_extents Dimensions of the eye swapchain (max)
+ * @param xr_info Your OpenXR context/info, @ref EmXrInfo
  *
  * @return EmRemoteExperience* or NULL in case of error
  */
 EmRemoteExperience *
 em_remote_experience_new(EmConnection *connection,
                          EmStreamClient *stream_client,
-                         XrInstance instance,
-                         XrSession session,
-                         const XrExtent2Di *eye_extents);
+						 const EmXrInfo* xr_info);
 
 
 /*!
