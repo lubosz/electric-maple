@@ -7,6 +7,7 @@
  * @author Korcan Hussein <korcan.hussein@collabora.com>
  * @ingroup em_client
  */
+#pragma once
 #include <openxr/openxr.h>
 #include <algorithm>
 #include <vector>
