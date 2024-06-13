@@ -15,6 +15,7 @@
 #include "em_app_log.h"
 #include "em_connection.h"
 #include "em_stream_client.h"
+#include "em_display_refresh_rates.hpp"
 #include "em_passthrough.hpp"
 #include "em_system_properties.hpp"
 #include "em_colorspaces.hpp"
@@ -35,6 +36,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <array>
+#include <sstream>
 #include <vector>
 #include <string>
 #include <exception>
@@ -202,6 +204,43 @@ em_remote_experience_finalize(EmRemoteExperience *exp)
 	}
 }
 
+static inline em::XrContext em_remote_experience_get_xr_context(const EmRemoteExperience *exp) {
+	return em::XrContext {
+		.instance = exp->xr_not_owned.instance,
+		.session  = exp->xr_not_owned.session,
+		.enabled_extensions = &exp->xr_owned.enabledExtensions,
+	};
+}
+
+static void
+em_remote_experience_set_display_refresh_rate(EmRemoteExperience *exp, const float new_refresh_rate) {
+
+	em::XrDisplayRefreshRates xr_refresh_rates{
+		em_remote_experience_get_xr_context(exp)
+	};
+	ALOGI("%s is %ssupported", XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME, xr_refresh_rates.is_supported() ? "" : "not ");
+	if (!xr_refresh_rates.is_supported())
+		return;
+
+	const auto available_rates = xr_refresh_rates.available_refresh_rates();
+	std::ostringstream oss;
+	for (const float rate: available_rates) {
+		oss << rate << ", ";
+	}
+	const auto& available_rates_str = oss.str();
+	ALOGI("available refresh rates: %s", available_rates_str.c_str());
+
+	const auto current_rate_opt = xr_refresh_rates.current_refresh_rate();
+	if (current_rate_opt)
+		ALOGI("Current display refresh rate is %f", current_rate_opt.value());
+	else
+		ALOGW("Failed to obtain current display refresh rate");		
+	
+	ALOGI("Attempting to set display refresh rate to: %f", new_refresh_rate);
+	if (!xr_refresh_rates.set_refresh_rate(new_refresh_rate))
+		ALOGW("Failed to set display refresh rate");
+}
+
 EmRemoteExperience *
 em_remote_experience_new(EmConnection *connection,
                          EmStreamClient *stream_client,
@@ -241,18 +280,21 @@ em_remote_experience_new(EmConnection *connection,
 		}
 	}
 
-	if (const auto key_color_opt = em::read_system_property_vec3f(EM_KEY_COLOR_PROPERTY_NAME, 500)) {
-		self->additive_key_to_alpha.key_color = em::linear_srgb_to_yuv_b2020(key_color_opt.value());
-	}
-	if (const auto key_threshold_opt = em::read_system_property_float(EM_KEY_THRESHOLD_PROPERTY_NAME, 500)) {
-		self->additive_key_to_alpha.key_threshold = key_threshold_opt.value();
-	}
+	//em_remote_experience_set_display_refresh_rate(self, 90.0f);
 
 	self->passthrough = em::make_passthrough(em::XrContext{
 		.instance = xr_info->instance,
 		.session  = xr_info->session,
 		.enabled_extensions = &self->xr_owned.enabledExtensions,
 	});
+	if (self->passthrough != nullptr) {
+		if (const auto key_color_opt = em::read_system_property_vec3f(EM_KEY_COLOR_PROPERTY_NAME, 500)) {
+			self->additive_key_to_alpha.key_color = em::linear_srgb_to_yuv_b2020(key_color_opt.value());
+		}
+		if (const auto key_threshold_opt = em::read_system_property_float(EM_KEY_THRESHOLD_PROPERTY_NAME, 500)) {
+			self->additive_key_to_alpha.key_threshold = key_threshold_opt.value();
+		}
+	}
 
 	// Quest requires the EGL context to be current when calling xrCreateSwapchain
 	em_stream_client_egl_begin_pbuffer(stream_client);

@@ -137,7 +137,8 @@ poll_events(struct android_app *app, struct em_state &state)
 	buffer.next = NULL;
 
 	while (xrPollEvent(state.instance, &buffer) == XR_SUCCESS) {
-		if (buffer.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
+		switch (buffer.type) {
+		case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: {
 			XrEventDataSessionStateChanged *event = (XrEventDataSessionStateChanged *)&buffer;
 
 			switch (event->state) {
@@ -165,10 +166,14 @@ poll_events(struct android_app *app, struct em_state &state)
 			case XR_SESSION_STATE_EXITING: ALOGI("OpenXR session is now EXITING"); break;
 			default: break;
 			}
-
 			state.sessionState = event->state;
+		} break;
+		case XR_TYPE_EVENT_DATA_DISPLAY_REFRESH_RATE_CHANGED_FB: {
+			const auto& refreshRateChangedEvent = *reinterpret_cast<const XrEventDataDisplayRefreshRateChangedFB*>(&buffer);
+			ALOGI("display refresh rate has changed from %f Hz to %f Hz", refreshRateChangedEvent.fromDisplayRefreshRate, refreshRateChangedEvent.toDisplayRefreshRate);
+		} break;
+		default: break;
 		}
-
 		buffer.type = XR_TYPE_EVENT_DATA_BUFFER;
 	}
 
@@ -307,13 +312,20 @@ android_main(struct android_app *app)
 		// ...
 	};
 
-	std::array<const char*, 2> optionalExtensions = {
+	std::array<const char*, 3> optionalExtensions = {
 		// XR_KHR_ exts
 		// ...
+		//
 		// XR_EXT_ exts
 		// ...
+		//
 		// XR_Vendor_ specific exts
+		//
+		// FB
+		XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME,
 		XR_FB_PASSTHROUGH_EXTENSION_NAME,
+
+		// HTC
 		XR_HTC_PASSTHROUGH_EXTENSION_NAME,
 	};
 

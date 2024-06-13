@@ -9,6 +9,7 @@ add_library(
 	em_remote_experience.cpp
 	em_stream_client.c
 	em_system_properties.cpp
+	em_display_refresh_rates.cpp
 	em_passthrough.cpp
 	render/GLDebug.cpp
 	render/GLError.cpp
