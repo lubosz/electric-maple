@@ -742,11 +742,18 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	gchar *encoder_str = NULL;
 	if (args->encoder_type == EMS_ENCODER_TYPE_X264) {
 		encoder_str = g_strdup_printf(
+		    "videoconvert ! "
+		    "video/x-raw,format=NV12 ! "
+		    "queue ! "
 		    "x264enc tune=zerolatency sliced-threads=true speed-preset=veryfast bframes=2 bitrate=%d",
 		    args->bitrate);
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVH264) {
-		encoder_str = g_strdup_printf("nvh264enc zerolatency=true bitrate=%d rc-mode=cbr preset=low-latency",
-		                              args->bitrate);
+		const char *nvenc_pipe =
+		    "cudaupload ! queue ! cudaconvert ! "
+		    // or tune=ultra-low-latency
+		    "nvautogpuh264enc bitrate=%d rate-control=cbr preset=p1 tune=low-latency "
+		    "multi-pass=two-pass-quarter zero-reorder-delay=true cc-insert=disabled cabac=false";
+		encoder_str = g_strdup_printf(nvenc_pipe, args->bitrate);
 	} else {
 		U_LOG_E("Unexpected encoder type.");
 		abort();
@@ -754,9 +761,6 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 
 	pipeline_str = g_strdup_printf(
 	    "appsrc name=%s ! "            //
-	    "videoconvert ! "              //
-	    "video/x-raw,format=NV12 ! "   //
-	    "queue ! "                     //
 	    "%s ! "                        //
 	    "video/x-h264,profile=main ! " //
 	    "%s"
