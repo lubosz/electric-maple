@@ -341,16 +341,16 @@ rtppay_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	}
 
 	// Add extension data only on last Access Unit, indicated by the marker bit.
-	if (!gst_rtp_buffer_get_marker(&rtp_buffer)) {
-		gst_rtp_buffer_unmap(&rtp_buffer);
-		return GST_PAD_PROBE_OK; // Nothing's wrong, we keep the pad active.
-	}
+	// if (!gst_rtp_buffer_get_marker(&rtp_buffer)) {
+	// 	gst_rtp_buffer_unmap(&rtp_buffer);
+	// 	return GST_PAD_PROBE_OK; // Nothing's wrong, we keep the pad active.
+	// }
 
 	// Inject extension data
 	GstCustomMeta *custom_meta = gst_buffer_get_custom_meta(buffer, "down-message");
 	if (!custom_meta) {
 			U_LOG_E("Failed to get custom meta from GstBuffer!");
-			return false;
+			return GST_PAD_PROBE_OK;
 	}
 
 	GstStructure *custom_structure = gst_custom_meta_get_structure(custom_meta);
