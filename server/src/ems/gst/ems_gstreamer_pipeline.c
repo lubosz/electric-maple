@@ -349,7 +349,8 @@ rtppay_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	// Inject extension data
 	GstCustomMeta *custom_meta = gst_buffer_get_custom_meta(buffer, "down-message");
 	if (!custom_meta) {
-			U_LOG_E("Failed to get custom meta from GstBuffer!");
+			gst_rtp_buffer_unmap(&rtp_buffer);
+			//U_LOG_E("Failed to get custom meta from GstBuffer!");
 			return GST_PAD_PROBE_OK;
 	}
 
