@@ -850,7 +850,7 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	    "video/x-h264,profile=main ! " //
 	    "%s"
 	    "queue ! "                          //
-	    "rtph264pay name=rtppay config-interval=-1 ! "  //
+	    "rtph264pay name=rtppay config-interval=1 ! "  //
 	    "application/x-rtp,payload=96 ! "  //
 	    "tee name=%s allow-not-linked=true",
 	    appsrc_name, encoder_str, save_tee_str, WEBRTC_TEE_NAME);
