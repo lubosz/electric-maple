@@ -835,8 +835,8 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVH264) {
 		const char* nvenc_pipe =
 			"cudaupload ! queue ! cudaconvert ! "
-			"nvautogpuh264enc bitrate=%d rate-control=cbr preset=p1 tune=low-latency " // or tune=ultra-low-latency
-			"multi-pass=two-pass-quarter zero-reorder-delay=true cc-insert=disabled cabac=false";
+			"nvautogpuh264enc bitrate=%d rate-control=cbr preset=p1 tune=ultra-low-latency " // or tune=ultra-low-latency
+			"multi-pass=two-pass-quarter zero-reorder-delay=true cc-insert=disabled cabac=true";
 		encoder_str = g_strdup_printf(nvenc_pipe, args->bitrate);
 	} else {
 		U_LOG_E("Unexpected encoder type.");
