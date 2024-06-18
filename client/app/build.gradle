@@ -11,7 +11,18 @@ android {
     compileSdk 33
 
     namespace 'com.plutovr.electricmaple.standalone_client'
-    ndkVersion project.ndkVersion
+    ndkVersion ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+
+    // New syntax (credit goes to ʍѳђઽ૯ท in comment)
+    kotlin {
+        jvmToolchain(17)
+    }
 
     defaultConfig {
 //        todo
