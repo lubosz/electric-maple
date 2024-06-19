@@ -82,7 +82,7 @@ static GParamSpec *properties[N_PROPERTIES] = {
     NULL,
 };
 
-#define DEFAULT_WEBSOCKET_URI "ws://127.0.0.1:8080/ws"
+#define DEFAULT_WEBSOCKET_URI "ws://192.168.1.230:8080/ws"
 
 
 /* GObject method implementations */
