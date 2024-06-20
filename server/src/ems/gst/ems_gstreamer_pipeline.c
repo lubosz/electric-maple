@@ -748,11 +748,16 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 		    "x264enc tune=zerolatency sliced-threads=true speed-preset=veryfast bframes=2 bitrate=%d",
 		    args->bitrate);
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVH264) {
-		const char *nvenc_pipe =
-		    "cudaupload ! queue ! cudaconvert ! "
-		    // or tune=ultra-low-latency
-		    "nvautogpuh264enc bitrate=%d rate-control=cbr preset=p1 tune=low-latency "
-		    "multi-pass=two-pass-quarter zero-reorder-delay=true cc-insert=disabled cabac=false";
+
+		const char* nvenc_pipe =
+#ifdef EMS_USE_OLD_IMPL_TODO_REFACTOR_PLZ
+			"cudaupload ! queue ! cudaconvert ! nvautogpuh264enc "
+#else
+			"queue ! cudaconvert ! nvautogpuh264enc " // TODO: switch to nvcudah264enc, nvautogpuh264enc auto creates a cuda context, we need control over this for vulkan-cuda interop.
+#endif
+			"bitrate=%d rate-control=cbr preset=p1 tune=low-latency " // or tune=ultra-low-latency
+			"multi-pass=two-pass-quarter zero-reorder-delay=true cc-insert=disabled cabac=false";
+
 		encoder_str = g_strdup_printf(nvenc_pipe, args->bitrate);
 	} else {
 		U_LOG_E("Unexpected encoder type.");
