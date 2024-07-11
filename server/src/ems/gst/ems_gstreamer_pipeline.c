@@ -77,13 +77,6 @@ struct ems_gstreamer_pipeline
 };
 
 static gboolean
-sigint_handler(gpointer user_data)
-{
-	g_main_loop_quit(user_data);
-	return G_SOURCE_REMOVE;
-}
-
-static gboolean
 gst_bus_cb(GstBus *bus, GstMessage *message, gpointer user_data)
 {
 	struct ems_gstreamer_pipeline *egp = (struct ems_gstreamer_pipeline *)user_data;
@@ -879,9 +872,6 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	g_signal_connect(signaling_server, "ws-client-disconnected", G_CALLBACK(webrtc_client_disconnected_cb), egp);
 	g_signal_connect(signaling_server, "sdp-answer", G_CALLBACK(webrtc_sdp_answer_cb), egp);
 	g_signal_connect(signaling_server, "candidate", G_CALLBACK(webrtc_candidate_cb), egp);
-
-	// loop = g_main_loop_new (NULL, FALSE);
-	// g_unix_signal_add (SIGINT, sigint_handler, loop);
 
 	g_print(
 	    "Output streams:\n"
