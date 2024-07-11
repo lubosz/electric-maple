@@ -297,7 +297,6 @@ static void
 ems_signaling_server_dispose(GObject *object)
 {
 	EmsSignalingServer *self = EMS_SIGNALING_SERVER(object);
-	GDir *dir;
 
 	soup_server_disconnect(self->soup_server);
 	g_clear_object(&self->soup_server);
