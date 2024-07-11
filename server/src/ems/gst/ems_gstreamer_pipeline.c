@@ -305,13 +305,36 @@ webrtcbin_srcpad_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	return GST_PAD_PROBE_OK;
 }
 
+static bool
+ems_gstreamer_pipeline_add_payload_pad_probe(struct ems_gstreamer_pipeline *self, GstElement *webrtcbin)
+{
+	GstPipeline *pipeline = GST_PIPELINE(self->base.pipeline);
+
+	GstElement *rtppay = gst_bin_get_by_name(GST_BIN(pipeline), "rtppay");
+	if (rtppay == NULL) {
+		U_LOG_E("Could not find rtppay element.");
+		return false;
+	}
+
+	GstPad *pad = gst_element_get_static_pad(rtppay, "src");
+	if (pad == NULL) {
+		U_LOG_E("Could not find static src pad in rtppay.");
+		return false;
+	}
+
+	gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, webrtcbin_srcpad_probe, self, NULL);
+	gst_object_unref(pad);
+
+	return true;
+}
+
+
 static void
 webrtc_client_connected_cb(EmsSignalingServer *server, EmsClientId client_id, struct ems_gstreamer_pipeline *egp)
 {
 	GstBin *pipeline = GST_BIN(egp->base.pipeline);
 	gchar *name;
 	GstElement *webrtcbin;
-	GstPad *webrtcbin_srcpad;
 	GstCaps *caps;
 	GstStateChangeReturn ret;
 	GstWebRTCRTPTransceiver *transceiver;
@@ -349,19 +372,6 @@ webrtc_client_connected_cb(EmsSignalingServer *server, EmsClientId client_id, st
 		                 egp);
 	}
 
-	// Get the srcpad associated with our webrtcbin element
-	webrtcbin_srcpad = gst_element_get_static_pad(webrtcbin, "src");
-
-	if (webrtcbin_srcpad != NULL) {
-		// Add a probe to call our callback when buffers get to the src pad
-		gst_pad_add_probe(webrtcbin_srcpad, GST_PAD_PROBE_TYPE_BUFFER, webrtcbin_srcpad_probe, egp,
-		                  NULL /*destroy_data*/);
-
-		gst_object_unref(webrtcbin_srcpad);
-	} else {
-		U_LOG_E("Could not retrieve webrtcbin srcpad !");
-	}
-
 	ret = gst_element_set_state(webrtcbin, GST_STATE_PLAYING);
 	g_assert(ret != GST_STATE_CHANGE_FAILURE);
 
@@ -382,6 +392,10 @@ webrtc_client_connected_cb(EmsSignalingServer *server, EmsClientId client_id, st
 	    gst_promise_new_with_change_func((GstPromiseChangeFunc)on_offer_created, webrtcbin, NULL));
 
 	GST_DEBUG_BIN_TO_DOT_FILE(pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "rtcbin");
+
+	if (!ems_gstreamer_pipeline_add_payload_pad_probe(egp, webrtcbin)) {
+		U_LOG_E("Failed to add payload pad probe.");
+	}
 
 	g_free(name);
 }
@@ -702,17 +716,17 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	signaling_server = ems_signaling_server_new();
 
 	pipeline_str = g_strdup_printf(
-	    "appsrc name=%s ! "                //
-	    "queue ! "                         //
-	    "videoconvert ! "                  //
-	    "video/x-raw,format=NV12 ! "       //
-	    "queue !"                          //
-	    "x264enc tune=zerolatency ! "      //
-	    "video/x-h264,profile=baseline ! " //
-	    "queue !"                          //
-	    "h264parse ! "                     //
-	    "rtph264pay config-interval=1 ! "  //
-	    "application/x-rtp,payload=96 ! "  //
+	    "appsrc name=%s ! "                           //
+	    "queue ! "                                    //
+	    "videoconvert ! "                             //
+	    "video/x-raw,format=NV12 ! "                  //
+	    "queue !"                                     //
+	    "x264enc tune=zerolatency ! "                 //
+	    "video/x-h264,profile=baseline ! "            //
+	    "queue !"                                     //
+	    "h264parse ! "                                //
+	    "rtph264pay name=rtppay config-interval=1 ! " //
+	    "application/x-rtp,payload=96 ! "             //
 	    "tee name=%s allow-not-linked=true",
 	    appsrc_name, WEBRTC_TEE_NAME);
 
