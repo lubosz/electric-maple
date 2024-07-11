@@ -15,31 +15,17 @@
 
 #include "xrt/xrt_device.h"
 
-#include "os/os_time.h"
-
 #include "math/m_api.h"
-#include "math/m_mathinclude.h"
 
 #include "util/u_var.h"
-#include "util/u_misc.h"
-#include "util/u_time.h"
 #include "util/u_debug.h"
 #include "util/u_device.h"
 #include "util/u_logging.h"
-#include "util/u_distortion_mesh.h"
-
-
-
-#include "electricmaple.pb.h"
-#include "pb_decode.h"
 
 #include "ems_server_internal.h"
 
-#include <thread>
-
 #include <cstdio>
 #include <cassert>
-
 
 
 /*

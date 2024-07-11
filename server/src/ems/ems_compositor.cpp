@@ -26,7 +26,6 @@
 #include "util/u_misc.h"
 #include "util/u_time.h"
 #include "util/u_debug.h"
-#include "util/u_verify.h"
 #include "util/u_handles.h"
 #include "util/u_trace_marker.h"
 

@@ -10,8 +10,6 @@
  */
 
 #include "ems_callbacks.h"
-#include <cstddef>
-#include <type_traits>
 
 #include "util/u_generic_callbacks.hpp"
 

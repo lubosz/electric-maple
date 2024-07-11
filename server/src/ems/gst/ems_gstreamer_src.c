@@ -12,14 +12,13 @@
 
 #include "util/u_trace_marker.h"
 #include "util/u_misc.h"
-#include "util/u_debug.h"
 #include "util/u_format.h"
+#include "util/u_logging.h"
 
 #include "ems_gstreamer_src.h"
 #include "ems_gstreamer.h"
 #include "gst/video/video-format.h"
 #include "gst/video/gstvideometa.h"
-#include "gst/app/gstappsink.h"
 #include "gst/app/gstappsrc.h"
 
 #include <assert.h>
