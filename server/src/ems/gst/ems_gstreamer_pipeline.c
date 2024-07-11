@@ -43,6 +43,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include "ems_pipeline_args.h"
+
 #define WEBRTC_TEE_NAME "webrtctee"
 
 #ifdef __aarch64__
@@ -617,6 +619,8 @@ destroy(struct xrt_frame_node *node)
 	 * be called, it's now safe to destroy and free ourselves.
 	 */
 
+	U_LOG_I("Shutting down em pipeline.");
+
 	free(gp);
 }
 
@@ -726,20 +730,42 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 
 	signaling_server = ems_signaling_server_new();
 
+	struct ems_arguments *args = ems_arguments_get();
+
+	gchar *debug_file_path = NULL;
+	if (args->stream_debug_file) {
+		debug_file_path = g_file_get_path(args->stream_debug_file);
+	}
+
+	gchar *save_tee_str = NULL;
+	if (debug_file_path) {
+		save_tee_str = g_strdup_printf(
+		    "tee name=savetee "
+		    "savetee. ! queue ! matroskamux ! filesink location=%s "
+		    "savetee. ! ",
+		    debug_file_path);
+	} else {
+		save_tee_str = g_strdup("");
+	}
+
 	pipeline_str = g_strdup_printf(
-	    "appsrc name=%s ! "                           //
+	    "appsrc name=%s ! "                //
+	    "queue ! "                         //
+	    "videoconvert ! "                  //
+	    "video/x-raw,format=NV12 ! "       //
+	    "queue ! "                         //
+	    "x264enc tune=zerolatency ! "      //
+	    "video/x-h264,profile=baseline ! " //
+	    "%s"
 	    "queue ! "                                    //
-	    "videoconvert ! "                             //
-	    "video/x-raw,format=NV12 ! "                  //
-	    "queue !"                                     //
-	    "x264enc tune=zerolatency ! "                 //
-	    "video/x-h264,profile=baseline ! "            //
-	    "queue !"                                     //
 	    "h264parse ! "                                //
 	    "rtph264pay name=rtppay config-interval=1 ! " //
 	    "application/x-rtp,payload=96 ! "             //
 	    "tee name=%s allow-not-linked=true",
-	    appsrc_name, WEBRTC_TEE_NAME);
+	    appsrc_name, save_tee_str, WEBRTC_TEE_NAME);
+
+	g_free(debug_file_path);
+	g_free(save_tee_str);
 
 	// no webrtc bin yet until later!
 

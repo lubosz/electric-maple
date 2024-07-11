@@ -21,6 +21,8 @@
 #include "util/u_windows.h"
 #endif
 
+#include "gst/ems_pipeline_args.h"
+
 // #include "target_lists.h"
 
 
@@ -36,6 +38,12 @@ ipc_server_main(int argc, char *argv[]);
 int
 main(int argc, char *argv[])
 {
+	if (!ems_arguments_parse(argc, argv)) {
+		U_LOG_E("Could not parse command line arguments.");
+		return -1;
+	}
+
+
 #ifdef XRT_OS_WINDOWS
 	u_win_try_privilege_or_priority_from_args(U_LOGGING_INFO, argc, argv);
 #endif
