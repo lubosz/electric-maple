@@ -21,7 +21,7 @@ checkGLError(const char *func, int line)
 {
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR) {
-		ALOGE("RYLIE: %s:%d: OpenGL error: %d,", func, line, err);
+		ALOGE("%s:%d: OpenGL error: %d,", func, line, err);
 		return false;
 	}
 	return true;
@@ -31,7 +31,7 @@ checkGLErrorWrap(const char *when, const char *expr, const char *func, int line)
 {
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR) {
-		ALOGE("RYLIE: %s:%d: OpenGL error %s call to %s: %d,", func, line, when, expr, err);
+		ALOGE("%s:%d: OpenGL error %s call to %s: %d,", func, line, when, expr, err);
 	}
 }
 bool
@@ -39,7 +39,7 @@ checkEGLError(const char *func, int line)
 {
 	EGLint err = eglGetError();
 	if (err != EGL_SUCCESS) {
-		ALOGE("RYLIE: %s:%d: EGL error: %d,", func, line, err);
+		ALOGE("%s:%d: EGL error: %d,", func, line, err);
 		return false;
 	}
 	return true;
@@ -50,6 +50,6 @@ checkEGLErrorWrap(const char *when, const char *expr, const char *func, int line
 {
 	EGLint err = eglGetError();
 	if (err != EGL_SUCCESS) {
-		ALOGE("RYLIE: %s:%d: EGL error %s call to %s: %d,", func, line, when, expr, err);
+		ALOGE("%s:%d: EGL error %s call to %s: %d,", func, line, when, expr, err);
 	}
 }

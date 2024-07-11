@@ -354,7 +354,7 @@ android_main(struct android_app *app)
 	ALOGI("Got recommended eye dimensions: %dx%d", state.width, state.height);
 
 	// OpenXR session
-	ALOGI("FRED: Creating OpenXR session...");
+	ALOGI("Creating OpenXR session...");
 	PFN_xrGetOpenGLESGraphicsRequirementsKHR xrGetOpenGLESGraphicsRequirementsKHR = NULL;
 	XR_LOAD(xrGetOpenGLESGraphicsRequirementsKHR);
 	XrGraphicsRequirementsOpenGLESKHR graphicsRequirements = {.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};

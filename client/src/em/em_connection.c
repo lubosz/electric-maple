@@ -96,7 +96,7 @@ em_connection_set_property(GObject *object, guint property_id, const GValue *val
 	case PROP_WEBSOCKET_URI:
 		g_free(self->websocket_uri);
 		self->websocket_uri = g_value_dup_string(value);
-		ALOGI("RYLIE: websocket URI assigned; %s", self->websocket_uri);
+		ALOGI("websocket URI assigned; %s", self->websocket_uri);
 		break;
 
 
@@ -146,7 +146,7 @@ em_connection_finalize(GObject *object)
 static void
 em_connection_class_init(EmConnectionClass *klass)
 {
-	ALOGE("RYLIE: %s: Begin", __FUNCTION__);
+	ALOGE("%s: Begin", __FUNCTION__);
 	GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
 
 	gobject_class->dispose = em_connection_dispose;
@@ -236,7 +236,7 @@ em_connection_class_init(EmConnectionClass *klass)
 	 */
 	signals[SIGNAL_ON_DROP_PIPELINE] = g_signal_new("on-drop-pipeline", G_OBJECT_CLASS_TYPE(klass),
 	                                                G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
-	ALOGE("RYLIE: %s: End", __FUNCTION__);
+	ALOGE("%s: End", __FUNCTION__);
 }
 
 
@@ -314,7 +314,7 @@ emconn_disconnect_internal(EmConnection *emconn, enum em_status status)
 static void
 emconn_data_channel_error_cb(GstWebRTCDataChannel *datachannel, EmConnection *emconn)
 {
-	ALOGE("RYLIE: %s: error", __FUNCTION__);
+	ALOGE("%s: error", __FUNCTION__);
 	emconn_disconnect_internal(emconn, EM_STATUS_DISCONNECTED_ERROR);
 	// abort();
 }
@@ -322,14 +322,14 @@ emconn_data_channel_error_cb(GstWebRTCDataChannel *datachannel, EmConnection *em
 static void
 emconn_data_channel_close_cb(GstWebRTCDataChannel *datachannel, EmConnection *emconn)
 {
-	ALOGI("RYLIE: %s: Data channel closed", __FUNCTION__);
+	ALOGI("%s: Data channel closed", __FUNCTION__);
 	emconn_disconnect_internal(emconn, EM_STATUS_DISCONNECTED_REMOTE_CLOSE);
 }
 
 static void
 emconn_data_channel_message_string_cb(GstWebRTCDataChannel *datachannel, gchar *str, EmConnection *emconn)
 {
-	ALOGI("RYLIE: %s: Received data channel message: %s", __FUNCTION__, str);
+	ALOGI("%s: Received data channel message: %s", __FUNCTION__, str);
 }
 
 static void
@@ -340,7 +340,7 @@ emconn_webrtc_deep_notify_callback(GstObject *self, GstObject *prop_object, GPar
 {
 	GstWebRTCPeerConnectionState state;
 	g_object_get(prop_object, "connection-state", &state, NULL);
-	ALOGV("RYLIE: deep-notify callback says peer connection state is %s - but it lies sometimes",
+	ALOGV("deep-notify callback says peer connection state is %s - but it lies sometimes",
 	      peer_connection_state_to_string(state));
 	// emconn_update_status_from_peer_connection_state(emconn, state);
 }
@@ -569,11 +569,11 @@ emconn_websocket_connected_cb(GObject *session, GAsyncResult *res, EmConnection 
 	g_assert_no_error(error);
 	GstBus *bus;
 
-	ALOGI("RYLIE: Websocket connected");
+	ALOGI("Websocket connected");
 	g_signal_connect(emconn->ws, "message", G_CALLBACK(emconn_on_ws_message_cb), emconn);
 	g_signal_emit(emconn, signals[SIGNAL_WEBSOCKET_CONNECTED], 0);
 
-	ALOGI("RYLIE: creating pipeline");
+	ALOGI("creating pipeline");
 	g_assert_null(emconn->pipeline);
 	g_signal_emit(emconn, signals[SIGNAL_ON_NEED_PIPELINE], 0);
 	if (emconn->pipeline == NULL) {
@@ -584,9 +584,9 @@ emconn_websocket_connected_cb(GObject *session, GAsyncResult *res, EmConnection 
 	// OK, if we get here, we have a websocket connection, and a pipeline fully configured
 	// so we can start the pipeline playing
 
-	ALOGI("RYLIE: Setting pipeline state to PLAYING");
+	ALOGI("Setting pipeline state to PLAYING");
 	gst_element_set_state(GST_ELEMENT(emconn->pipeline), GST_STATE_PLAYING);
-	ALOGI("%s: RYLIE: Done with function", __FUNCTION__);
+	ALOGI("%s: Done with function", __FUNCTION__);
 }
 
 
@@ -603,7 +603,7 @@ em_connection_set_pipeline(EmConnection *emconn, GstPipeline *pipeline)
 
 	emconn_update_status(emconn, EM_STATUS_NEGOTIATING);
 
-	ALOGI("RYLIE: getting webrtcbin");
+	ALOGI("getting webrtcbin");
 	emconn->webrtcbin = gst_bin_get_by_name(GST_BIN(emconn->pipeline), "webrtc");
 	g_assert_nonnull(emconn->webrtcbin);
 	g_assert(G_IS_OBJECT(emconn->webrtcbin));
@@ -623,7 +623,7 @@ emconn_connect_internal(EmConnection *emconn, enum em_status status)
 		emconn->ws_cancel = g_cancellable_new();
 	}
 	g_cancellable_reset(emconn->ws_cancel);
-	ALOGI("RYLIE: calling soup_session_websocket_connect_async. websocket_uri = %s", emconn->websocket_uri);
+	ALOGI("calling soup_session_websocket_connect_async. websocket_uri = %s", emconn->websocket_uri);
 #if SOUP_MAJOR_VERSION == 2
 	soup_session_websocket_connect_async(emconn->soup_session,                                     // session
 	                                     soup_message_new(SOUP_METHOD_GET, emconn->websocket_uri), // message
@@ -678,7 +678,7 @@ bool
 em_connection_send_bytes(EmConnection *emconn, GBytes *bytes)
 {
 	if (emconn->status != EM_STATUS_CONNECTED) {
-		ALOGW("RYLIE: Cannot send bytes when status is %s", em_status_to_string(emconn->status));
+		ALOGW("Cannot send bytes when status is %s", em_status_to_string(emconn->status));
 		return false;
 	}
 

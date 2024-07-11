@@ -127,7 +127,7 @@ em_remote_experience_report_pose(EmRemoteExperience *exp, XrTime predictedDispla
 	upMessage.tracking = tracking;
 
 	if (!em_remote_experience_emit_upmessage(exp, &upMessage)) {
-		ALOGE("RYLIE: Could not queue HMD pose message!");
+		ALOGE("Could not queue HMD pose message!");
 	}
 }
 
@@ -378,7 +378,7 @@ em_remote_experience_poll_and_render_frame(EmRemoteExperience *exp)
 	// Render
 
 	if (!em_stream_client_egl_begin_pbuffer(exp->stream_client)) {
-		ALOGE("FRED: mainloop_one: Failed make egl context current");
+		ALOGE("mainloop_one: Failed make egl context current");
 		return EM_POLL_RENDER_RESULT_ERROR_EGL;
 	}
 	bool shouldRender = frameState.shouldRender == XR_TRUE;
@@ -453,11 +453,11 @@ em_remote_experience_inner_poll_and_render_frame(EmRemoteExperience *exp,
 	if (!showedFov) {
 		showedFov = true;
 		ALOGI(
-		    "RYLIE XrFovf 0: (xrt_fov){ .angle_left = %0.03ff, .angle_right = %0.03ff, .angle_up = %0.03ff, "
+		    "XrFovf 0: (xrt_fov){ .angle_left = %0.03ff, .angle_right = %0.03ff, .angle_up = %0.03ff, "
 		    ".angle_down = %0.03ff }",
 		    views[0].fov.angleLeft, views[0].fov.angleRight, views[0].fov.angleUp, views[0].fov.angleDown);
 		ALOGI(
-		    "RYLIE XrFovf 1: (xrt_fov){ .angle_left = %0.03ff, .angle_right = %0.03ff, .angle_up = %0.03ff, "
+		    "XrFovf 1: (xrt_fov){ .angle_left = %0.03ff, .angle_right = %0.03ff, .angle_up = %0.03ff, "
 		    ".angle_down = %0.03ff }",
 		    views[1].fov.angleLeft, views[1].fov.angleRight, views[1].fov.angleUp, views[1].fov.angleDown);
 	}
