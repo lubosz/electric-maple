@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: BSL-1.0
 
-package com.plutovr.electricmaple.standalone_client
+package org.freedesktop.electricmaple.standalone_client
 
 import android.app.Application
 import android.system.Os
