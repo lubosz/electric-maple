@@ -250,7 +250,7 @@ data_channel_message_data_cb(GstWebRTCDataChannel *datachannel, GBytes *data, st
 static void
 data_channel_message_string_cb(GstWebRTCDataChannel *datachannel, gchar *str, struct ems_gstreamer_pipeline *egp)
 {
-	U_LOG_I("Received data channel message: %s", str);
+	// U_LOG_I("Received data channel message: %s", str);
 }
 
 static int
@@ -454,8 +454,8 @@ webrtc_client_connected_cb(EmsSignalingServer *server, EmsClientId client_id, st
 		g_signal_connect(egp->data_channel, "on-close", G_CALLBACK(data_channel_close_cb), egp);
 		g_signal_connect(egp->data_channel, "on-error", G_CALLBACK(data_channel_error_cb), egp);
 		g_signal_connect(egp->data_channel, "on-message-data", G_CALLBACK(data_channel_message_data_cb), egp);
-		// g_signal_connect(egp->data_channel, "on-message-string", G_CALLBACK(data_channel_message_string_cb),
-		//                  egp);
+		g_signal_connect(egp->data_channel, "on-message-string", G_CALLBACK(data_channel_message_string_cb),
+		                 egp);
 	}
 
 	ret = gst_element_set_state(webrtcbin, GST_STATE_PLAYING);
