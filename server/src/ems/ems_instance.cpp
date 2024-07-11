@@ -12,14 +12,9 @@
 #include "ems_callbacks.h"
 #include "xrt/xrt_system.h"
 #include "xrt/xrt_instance.h"
-#include "xrt/xrt_config_drivers.h"
 
-#include "util/u_misc.h"
 #include "util/u_builders.h"
 #include "util/u_trace_marker.h"
-
-
-#include "main/comp_main_interface.h"
 
 #include "ems_server_internal.h"
 
