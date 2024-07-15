@@ -1,0 +1,143 @@
+include:
+  - project: "freedesktop/ci-templates"
+    ref: 185ede0e9b9b1924b92306ab8b882a6294e92613
+    file:
+      - "/templates/debian.yml"
+      - "/templates/ubuntu.yml"
+      - "/templates/arch.yml"
+      - "/templates/alpine.yml"
+
+stages:
+  - container
+  - build
+
+variables:
+  FDO_UPSTREAM_REPO: "monado/electric-maple"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+
+.electric-maple.debian.bookworm:
+  variables:
+    FDO_DISTRIBUTION_VERSION: "bookworm"
+    FDO_DISTRIBUTION_TAG: "2024-07-18"
+    FDO_DISTRIBUTION_EXEC: "bash scripts/android-setup.sh"
+
+.electric-maple.ubuntu.noble:
+  variables:
+    FDO_DISTRIBUTION_VERSION: "24.04"
+    FDO_DISTRIBUTION_TAG: "2024-07-18"
+
+.electric-maple.arch:
+  variables:
+    FDO_DISTRIBUTION_TAG: "2024-07-18"
+
+.electric-maple.alpine:
+  variables:
+    FDO_DISTRIBUTION_TAG: "2024-07-18"
+
+
+debian:bookworm:container:
+  extends:
+    - .fdo.container-build@debian
+    - .electric-maple.debian.bookworm
+  stage: container
+  variables:
+    FDO_DISTRIBUTION_PACKAGES: "build-essential cmake curl default-jdk-headless glslang-tools glslc libbsd-dev libegl-dev libeigen3-dev libgles-dev libglib2.0-dev libgstreamer-plugins-bad1.0-dev libgstreamer-plugins-base1.0-dev libjson-glib-dev libopengl-dev libopenxr-dev libsdl2-dev libsoup-3.0-dev libsystemd-dev libvulkan-dev libx11-dev libx11-xcb-dev ninja-build pkg-config unzip wayland-protocols"
+
+ubuntu:noble:container:
+  extends:
+    - .fdo.container-build@ubuntu
+    - .electric-maple.ubuntu.noble
+  stage: container
+  variables:
+    FDO_DISTRIBUTION_PACKAGES: "build-essential cmake glslang-tools glslc libbsd-dev libegl-dev libeigen3-dev libjson-glib-dev libopengl-dev libgles-dev libglib2.0-dev libgstreamer-plugins-bad1.0-dev libgstreamer-plugins-base1.0-dev libopenxr-dev libsdl2-dev libsoup-3.0-dev libsystemd-dev libvulkan-dev libx11-dev libx11-xcb-dev ninja-build pkg-config wayland-protocols"
+
+arch:container:
+  extends:
+    - .fdo.container-build@arch
+    - .electric-maple.arch
+  stage: container
+  variables:
+    FDO_DISTRIBUTION_PACKAGES: "base-devel cmake eigen gst-plugins-bad gst-plugins-base ninja openxr vulkan-headers vulkan-icd-loader wayland-protocols"
+
+alpine:container:
+  extends:
+    - .fdo.container-build@alpine
+    - .electric-maple.alpine
+  stage: container
+  variables:
+    FDO_DISTRIBUTION_PACKAGES: "build-base cmake cmd:glslangValidator eigen-dev eudev-dev glib-dev gst-plugins-bad-dev gst-plugins-base-dev json-glib-dev libsoup3-dev libxrandr-dev mesa-dev openxr-dev samurai sdl2-dev vulkan-loader-dev"
+
+
+.electric-maple.client:
+  stage: build
+  script:
+    - cd client
+    - cmake -B build -G Ninja
+    - cmake --build build
+
+.electric-maple.server:
+  stage: build
+  script:
+    - cd server
+    - cmake -B build -G Ninja
+    - cmake --build build
+
+debian:bookworm:client:
+  extends:
+    - .fdo.distribution-image@debian
+    - .electric-maple.debian.bookworm
+    - .electric-maple.client
+
+debian:bookworm:client:android:
+  extends:
+    - .fdo.distribution-image@debian
+    - .electric-maple.debian.bookworm
+  stage: build
+  script:
+    - cd client
+    - ./download_gst.sh
+    - ANDROID_HOME=/opt/android-sdk/ ./gradlew assembleDebug
+
+debian:bookworm:server:
+  extends:
+    - .fdo.distribution-image@debian
+    - .electric-maple.debian.bookworm
+    - .electric-maple.server
+
+ubuntu.noble:client:
+  extends:
+    - .fdo.distribution-image@ubuntu
+    - .electric-maple.ubuntu.noble
+    - .electric-maple.client
+
+ubuntu.noble:server:
+  extends:
+    - .fdo.distribution-image@ubuntu
+    - .electric-maple.ubuntu.noble
+    - .electric-maple.server
+
+arch:client:
+  extends:
+    - .fdo.distribution-image@arch
+    - .electric-maple.arch
+    - .electric-maple.client
+
+arch:server:
+  extends:
+    - .fdo.distribution-image@arch
+    - .electric-maple.arch
+    - .electric-maple.server
+
+alpine:client:
+  extends:
+    - .fdo.distribution-image@alpine
+    - .electric-maple.alpine
+    - .electric-maple.client
+
+alpine:server:
+  extends:
+    - .fdo.distribution-image@alpine
+    - .electric-maple.alpine
+    - .electric-maple.server
+
