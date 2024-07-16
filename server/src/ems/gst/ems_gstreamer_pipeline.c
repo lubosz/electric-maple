@@ -747,6 +747,9 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVH264) {
 		encoder_str = g_strdup_printf("nvh264enc zerolatency=true bitrate=%d rc-mode=cbr preset=low-latency",
 		                              args->bitrate);
+	} else if (args->encoder_type == EMS_ENCODER_TYPE_VULKANH264) {
+		encoder_str =
+		    g_strdup_printf("vulkanupload ! vulkanh264enc average-bitrate=%d ! h264parse", args->bitrate);
 	} else {
 		U_LOG_E("Unexpected encoder type.");
 		abort();
