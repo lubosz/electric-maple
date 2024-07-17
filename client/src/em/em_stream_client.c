@@ -795,12 +795,19 @@ em_stream_client_try_pull_sample(EmStreamClient *sc, struct timespec *out_decode
 	// We actually pull the sample in the new-sample signal handler, so here we're just receiving the sample already
 	// pulled.
 	GstSample *sample = NULL;
+	bool received_first_frame = false;
 	struct timespec decode_end;
 	{
 		g_autoptr(GMutexLocker) locker = g_mutex_locker_new(&sc->sample_mutex);
 		sample = sc->sample;
 		sc->sample = NULL;
 		decode_end = sc->sample_decode_end_ts;
+		received_first_frame = sc->received_first_frame;
+	}
+
+	if (!received_first_frame) {
+		ALOGW("We have not received the first frame yet...");
+		return NULL;
 	}
 
 	if (sample == NULL) {
