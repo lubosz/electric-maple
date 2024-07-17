@@ -103,7 +103,6 @@ struct _EmStreamClient
 
 	struct os_thread_helper play_thread;
 
-	bool pipeline_is_running;
 	bool received_first_frame;
 
 	GMutex sample_mutex;
@@ -595,8 +594,6 @@ on_need_pipeline_cb(EmConnection *emconn, EmStreamClient *sc)
 	gst_bus_add_watch(bus, gst_bus_cb, sc->pipeline);
 	g_object_unref(bus);
 
-	sc->pipeline_is_running = TRUE;
-
 	GstElement *depay = gst_bin_get_by_name(GST_BIN(sc->pipeline), "depay");
 	GstPad *pad = gst_element_get_static_pad(depay, "sink");
 	if (pad != NULL) {
@@ -749,8 +746,6 @@ em_stream_client_stop(EmStreamClient *sc)
 	gst_clear_object(&sc->pipeline);
 	gst_clear_object(&sc->appsink);
 	gst_clear_object(&sc->context);
-
-	sc->pipeline_is_running = false;
 }
 
 static bool
