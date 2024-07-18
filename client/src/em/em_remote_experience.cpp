@@ -394,7 +394,10 @@ em_remote_experience_poll_and_render_frame(EmRemoteExperience *exp)
 	endInfo.displayTime = frameState.predictedDisplayTime;
 	endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
 	endInfo.layerCount = em_poll_render_result_include_layer(prResult) ? 1 : 0;
-	endInfo.layers = (const XrCompositionLayerBaseHeader *[1]){(XrCompositionLayerBaseHeader *)&layer};
+	const XrCompositionLayerBaseHeader* layers[1] = {
+	    (XrCompositionLayerBaseHeader *)&layer
+	};
+	endInfo.layers = layers;
 
 	xrEndFrame(session, &endInfo);
 
