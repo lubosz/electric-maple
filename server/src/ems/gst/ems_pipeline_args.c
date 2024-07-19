@@ -66,6 +66,8 @@ ems_arguments_parse(int argc, char *argv[])
 			arguments_instance.encoder_type = EMS_ENCODER_TYPE_X264;
 		} else if (g_strcmp0(encoder_name, "vulkanh264") == 0) {
 			arguments_instance.encoder_type = EMS_ENCODER_TYPE_VULKANH264;
+		} else if (g_strcmp0(encoder_name, "openh264") == 0) {
+			arguments_instance.encoder_type = EMS_ENCODER_TYPE_OPENH264;
 		} else {
 			arguments_instance.encoder_type = default_encoder_type;
 		}

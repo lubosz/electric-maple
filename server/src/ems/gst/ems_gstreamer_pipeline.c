@@ -766,6 +766,13 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 		    "queue ! "
 		    "vulkanupload ! vulkanh264enc average-bitrate=%d ! h264parse",
 		    args->bitrate);
+	} else if (args->encoder_type == EMS_ENCODER_TYPE_OPENH264) {
+		encoder_str = g_strdup_printf(
+		    "videoconvert ! "
+		    "video/x-raw,format=I420 ! "
+		    "queue ! "
+		    "openh264enc complexity=high rate-control=quality bitrate=%d",
+		    args->bitrate);
 	} else {
 		U_LOG_E("Unexpected encoder type.");
 		abort();
