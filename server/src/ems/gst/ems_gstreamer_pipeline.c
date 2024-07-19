@@ -744,17 +744,19 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 		encoder_str = g_strdup_printf(
 		    "videoconvert ! "
 		    "video/x-raw,format=NV12 ! "
+		    // Removing this queue will result in readback errors (Gst can't keep up consuming) and introduce 4x
+		    // latency This does not seem to happen for GPU encoders.
 		    "queue ! "
 		    "x264enc tune=zerolatency sliced-threads=true speed-preset=veryfast bframes=2 bitrate=%d",
 		    args->bitrate);
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVH264) {
 		const char *nvenc_pipe =
-		    "videoconvert ! queue !"
+		    "videoconvert !"
 		    "nvh264enc zerolatency=true bitrate=%d rc-mode=cbr preset=low-latency";
 		encoder_str = g_strdup_printf(nvenc_pipe, args->bitrate);
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_NVAUTOGPUH264) {
 		const char *nvenc_pipe =
-		    "cudaupload ! queue ! cudaconvert ! "
+		    "cudaupload ! cudaconvert ! "
 		    "nvautogpuh264enc bitrate=%d rate-control=cbr preset=p1 tune=low-latency "
 		    "multi-pass=two-pass-quarter zero-reorder-delay=true cc-insert=disabled cabac=false";
 		encoder_str = g_strdup_printf(nvenc_pipe, args->bitrate);
@@ -763,13 +765,14 @@ ems_gstreamer_pipeline_create(struct xrt_frame_context *xfctx,
 		encoder_str = g_strdup_printf(
 		    "videoconvert ! "
 		    "video/x-raw,format=NV12 ! "
-		    "queue ! "
 		    "vulkanupload ! vulkanh264enc average-bitrate=%d ! h264parse",
 		    args->bitrate);
 	} else if (args->encoder_type == EMS_ENCODER_TYPE_OPENH264) {
 		encoder_str = g_strdup_printf(
 		    "videoconvert ! "
 		    "video/x-raw,format=I420 ! "
+		    // Removing this queue will result in readback errors (Gst can't keep up consuming) and introduce
+		    // 10x latency This does not seem to happen for GPU encoders.
 		    "queue ! "
 		    "openh264enc complexity=high rate-control=quality bitrate=%d",
 		    args->bitrate);
