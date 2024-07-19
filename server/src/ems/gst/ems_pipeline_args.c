@@ -60,6 +60,8 @@ ems_arguments_parse(int argc, char *argv[])
 	if (encoder_name) {
 		if (g_strcmp0(encoder_name, "nvh264") == 0) {
 			arguments_instance.encoder_type = EMS_ENCODER_TYPE_NVH264;
+		} else if (g_strcmp0(encoder_name, "nvautogpuh264") == 0) {
+			arguments_instance.encoder_type = EMS_ENCODER_TYPE_NVAUTOGPUH264;
 		} else if (g_strcmp0(encoder_name, "x264") == 0) {
 			arguments_instance.encoder_type = EMS_ENCODER_TYPE_X264;
 		} else if (g_strcmp0(encoder_name, "vulkanh264") == 0) {
